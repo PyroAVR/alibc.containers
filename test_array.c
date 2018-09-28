@@ -1,16 +1,17 @@
 #include <stdio.h>
-#define DEBUG
-#include "list.h"
-#include "array.h"
+#include "include/list.h"
+#include "include/array.h"
 // ideas: 
 // implementation enforcement with macros via IMPLEMENTS(proto)
 // inheritance via extension, possibly after the { on a struct
 // # define protocol(...) typedef struct {???
 
-struct test {
-    proto_list;
-    int x;
-};
+/*
+ *struct test {
+ *    proto_list;
+ *    int x;
+ *};
+ */
 
 const char *data[] = {"the quick", "brown fox", "jumped over", "the lazy dog"};
 

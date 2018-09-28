@@ -1,12 +1,16 @@
-#include "list.h"
-#include "array.h"
+#include "../include/list.h"
+#include "../include/array.h"
+#include "../include/debug.h"
+#include <stdlib.h>
+#include <stdint.h>
 
-#define impl_cast(x) ((array_impl_t*)(x))
 
 #define REPAIR_SIZE 8
 
 
 // idea: "hardened" implementations which have data structure checksums
+
+// public functions
 
 static void array_insert(proto_list*, int, void*);
 static void array_append(proto_list*, void*);
@@ -17,7 +21,28 @@ static int array_size(proto_list*);
 static void array_free(proto_list*);
 
 
-// internal helper functions
+
+// private state
+#define impl_cast(x) ((array_impl_t*)(x))
+typedef struct  {
+    void **data;
+    uint32_t size;
+    uint32_t capacity;
+    uint8_t status;
+} array_impl_t;
+
+typedef enum    {
+    SUCCESS,
+    NO_MEM,
+    NULL_ARG,
+    NULL_IMPL,
+    NULL_BUF,
+    IDX_OOB,
+    IDX_NEG,
+    STATE_INVAL
+} array_status;
+
+// private functions
 static array_status check_valid(proto_list*);
 static array_status check_space_available(proto_list*, int);
 static array_status attempt_repair(proto_list*);
@@ -26,19 +51,19 @@ static array_status array_reallocate(proto_list*);
 proto_list *create_array(uint32_t size) {
     proto_list *r       = malloc(sizeof(proto_list));
     if(r == NULL)   {
-        DBG_LOG("Could not malloc proto_list");
+        DBG_LOG("Could not malloc proto_list\n");
         return NULL;
     }
     array_impl_t *impl  = malloc(sizeof(array_impl_t));
     if(impl == NULL)    {
-        DBG_LOG("Could not malloc array implementation");
+        DBG_LOG("Could not malloc array implementation\n");
         free(r);
         return NULL;
     }
     impl->data          = NULL; // insurance
     impl->data          = malloc(sizeof(void*)*size);
     if(impl->data == NULL)  {
-        DBG_LOG("Could not malloc raw buffer of size %s", size);
+        DBG_LOG("Could not malloc raw buffer of size %s\n", size);
         free(impl);
         free(r);
         return NULL;
@@ -291,5 +316,5 @@ static array_status array_reallocate(proto_list *self)  {
 }
 
 //todo: 
-//half-stable partition (for remove, insert since we make no ordering guarantee)
+//partition algs?
 //errors?
