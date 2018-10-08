@@ -15,137 +15,107 @@
 
 // public functions
 
-static void array_insert(proto_list*, int, void*);
-static void array_append(proto_list*, void*);
-static void *array_fetch(proto_list*, int);
-static void *array_remove(proto_list*, int);
-static void array_swap(proto_list*, int, int);
-static int array_size(proto_list*);
-static void array_free(proto_list*);
 
 
 
 // private state
-#define impl_cast(x) ((array_impl_t*)(x))
-typedef struct  {
-    dynabuf_t *data;
-    uint32_t size;
-    uint8_t status;
-} array_impl_t;
 
-typedef alibc_internal_errors array_status;
 
 // private functions
-static array_status check_valid(proto_list*);
-static array_status check_space_available(proto_list*, int);
-static array_status attempt_repair(proto_list*);
-static array_status array_reallocate(proto_list*);
+static array_status check_valid(array_t*);
+static array_status check_space_available(array_t*, int);
+static array_status attempt_repair(array_t*);
+static array_status array_reallocate(array_t*);
 
-proto_list *create_array(uint32_t size) {
-    proto_list *r       = malloc(sizeof(proto_list));
+array_t *create_array(uint32_t size) {
+    array_t *r       = malloc(sizeof(array_t));
     if(r == NULL)   {
-        DBG_LOG("Could not malloc proto_list\n");
+        DBG_LOG("Could not malloc array_t\n");
         return NULL;
     }
-    array_impl_t *impl  = malloc(sizeof(array_impl_t));
-    if(impl == NULL)    {
-        DBG_LOG("Could not malloc array implementation\n");
-        free(r);
-        return NULL;
-    }
-    impl->data          = NULL; // insurance
-    impl->data          = create_dynabuf(size*sizeof(void*));
-    if(impl->data == NULL)  {
-        DBG_LOG("Could not create dynabuf for impl with size %d\n", size);
-        free(impl);
+    r->data          = create_dynabuf(size*sizeof(void*));
+    if(r->data == NULL)  {
+        DBG_LOG("Could not create dynabuf with size %d\n", size);
         free(r);
         return NULL;
     }
 
-    memset(impl->data->buf, 0, size);
-    impl->size          = 0;
+    memset(r->data->buf, 0, size);
+    r->size          = 0;
 
-    r->impl             = impl;
-    r->insert           = array_insert;
-    r->append           = array_append;
-    r->fetch            = array_fetch;
-    r->remove           = array_remove;
-    r->swap             = array_swap;
-    r->size             = array_size;
-    r->free             = array_free;
     return r;
-
 }
 
 
-static void array_insert(proto_list *self, int where, void *item)   {
-    array_impl_t *impl;
+array_status array_insert(array_t *self, int where, void *item)   {
     switch(check_space_available(self, 1))  {
         case SUCCESS:
-            impl    = impl_cast(self->impl);
-            if(where > impl->size)  {
+            if(where > self->size)  {
                 DBG_LOG("Attempted insert beyond end of array.\n");
-                return;
+                return IDX_OOB;
             }
-            if(where != impl->size) {
-                array_swap(self, where, impl->size);
+            if(where != self->size) {
+                array_swap(self, where, self->size);
             }
-            impl->data->buf[where]   = item;
-            impl->size++;
+            self->data->buf[where]   = item;
+            self->size++;
         break;
 
         case NO_MEM:
+            if(array_reallocate(self) == SUCCESS)   {
+                DBG_LOG("realloc successful pre-insertion\n");
+                return array_insert(self, where, item);
+            }
             DBG_LOG("No space to insert new item. Ignoring.\n");
+            return NO_MEM;
         break;
         
         default:
             DBG_LOG("No space was available and state was otherwise invalid\n");
         break;
     }
+    return SUCCESS;
 }
 
 
-static void array_append(proto_list *self, void *item)  {
+array_status array_append(array_t *self, void *item)  {
     int status;
-    array_impl_t *impl;
     switch(check_space_available(self, 1))   {
         case SUCCESS:
-            impl    = impl_cast(self->impl);
-            impl->data->buf[impl->size++] = item;
+            self->data->buf[self->size++] = item;
         break;
         case NO_MEM:
             DBG_LOG("realloc needed\n");
             if((status = array_reallocate(self)) == SUCCESS)    {
-                // error codes pls
-                array_append(self, item);
-                return;
-            }   else    {
-                // return status;
+                return array_append(self, item);
+            }
+            else    {
+                return NO_MEM;
             }
         break;
         default:
-            switch(attempt_repair(self))    {
+            switch((status = attempt_repair(self)))    {
                 case SUCCESS:
-                    array_append(self, item);
+                    return array_append(self, item);
                 break;
-                default: //FIXME silent failure is not okay
+                default: 
+                return status;
                 break;
             }
     }
-
+    return SUCCESS;
 }
 
 
-static void *array_fetch(proto_list *self, int which)    {
-    array_impl_t *impl;
+void *array_fetch(array_t *self, int which)    {
     switch(check_valid(self))   {
         case SUCCESS:
-            impl    = impl_cast(self->impl);
-            if(which > impl->size) {
+            if(which > self->size) {
                 DBG_LOG("Requested fetch index was out of bounds: %d\n", which);
                 return NULL;
-            } else  {
-                return impl->data->buf[which];
+            }
+            else  {
+                return self->data->buf[which];
             }
         break;
         default:
@@ -154,19 +124,18 @@ static void *array_fetch(proto_list *self, int which)    {
 }
 
 
-static void *array_remove(proto_list *self, int which)  {
-    array_impl_t *impl;
+void *array_remove(array_t *self, int which)  {
     switch(check_valid(self))   {
         case SUCCESS:
-            impl    = impl_cast(self->impl);
-            if(which > impl->size)  {
+            if(which > self->size)  {
                 DBG_LOG("Requested remove index was out of bounds: %d\n",
                         which);
                 return NULL;
-            }   else    {
-                array_swap(self, which, impl->size -1);
-                impl->size--;
-                return impl->data->buf[impl->size -1];
+            }
+            else    {
+                array_swap(self, which, self->size -1);
+                self->size--;
+                return self->data->buf[self->size -1];
             }
         break;
         default:
@@ -176,49 +145,47 @@ static void *array_remove(proto_list *self, int which)  {
     }
 }
 
-static void array_swap(proto_list *self, int first, int second)    {
-    array_impl_t *impl;
-    switch(check_valid(self))   {
+array_status array_swap(array_t *self, int first, int second)    {
+    int status;
+    switch((status = check_valid(self)))   {
         case SUCCESS:
-            impl    = impl_cast(self->impl);
-            impl->data->buf[first]   = 
-                (void*)((uint64_t)impl->data->buf[first]
-                ^ (uint64_t)impl->data->buf[second]);
-            impl->data->buf[second]  =
-                (void*)((uint64_t)impl->data->buf[first]
-                ^ (uint64_t)impl->data->buf[second]);
-            impl->data->buf[first]   =
-                (void*)((uint64_t)impl->data->buf[first]
-                ^ (uint64_t)impl->data->buf[second]);
+            self->data->buf[first]   = 
+                (void*)((uint64_t)self->data->buf[first]
+                ^ (uint64_t)self->data->buf[second]);
+            self->data->buf[second]  =
+                (void*)((uint64_t)self->data->buf[first]
+                ^ (uint64_t)self->data->buf[second]);
+            self->data->buf[first]   =
+                (void*)((uint64_t)self->data->buf[first]
+                ^ (uint64_t)self->data->buf[second]);
         default:
-            // aaaaaa
+            return status;
         break;
     }
 
 }
 
-static int array_size(proto_list *self) {
-    if(check_valid(self) != SUCCESS)   {
+int array_size(array_t *self) {
+    int status;
+    if((status = check_valid(self)) != SUCCESS)   {
         if(attempt_repair(self) != SUCCESS) {
-            return -1; // FIXME: return a status code! 
+            return status;
         }
     }
-    return impl_cast(self->impl)->size;
+    return self->size;
 }
 
-static void array_free(proto_list *self)    {
+void array_free(array_t *self)    {
     if(self == NULL)    {
-        DBG_LOG("self was null");
+        DBG_LOG("self was null\n");
         return;
     }
-    if(self->impl == NULL)  {
-        DBG_LOG("self->impl was null");
+    if(self->data == NULL)  {
+        DBG_LOG("dynabuf was null\n");
         free(self);
-        return;
     }
-    if(impl_cast(self->impl)->data != NULL) {
-        dynabuf_free(impl_cast(self->impl)->data);
-        free(self->impl);
+    else {
+        dynabuf_free(self->data);
         free(self);
         return;
     }
@@ -230,51 +197,36 @@ static void array_free(proto_list *self)    {
  */
 
 // possible returns: SUCCESS NULL_ARG NULL_IMPL NULL_BUF
-static array_status check_valid(proto_list *self)    {
+static array_status check_valid(array_t *self)    {
     if(self == NULL)    {
         return NULL_ARG;
     }
     
-    if(self->impl == NULL)  {
-        return NULL_IMPL;
-    }
-
-    if(impl_cast(self->impl)->data == NULL) {
+    if(self->data == NULL) {
         return NULL_BUF;
     }
-
     return SUCCESS;
 }
 
 
-static array_status attempt_repair(proto_list *self)    {
-    array_impl_t *impl          = NULL;
+static array_status attempt_repair(array_t *self)    {
     switch(check_valid(self))   {
         case SUCCESS: return SUCCESS;
         case STATE_INVAL:
         break;
         case NULL_ARG:
+            DBG_LOG("self was null\n");
             return NULL_ARG;
         break;
-        case NULL_IMPL:
-            DBG_LOG("lost ref to impl cleanly (null)... memory leak likely.");
-            impl                = malloc(sizeof(array_impl_t));
-            if(impl == NULL)    {
-                DBG_LOG("Could not malloc new impl");
-                return STATE_INVAL;
-            }
-
-        case NULL_BUF:  // FALLTHROUGH INTENTIONAL
-            impl                = impl_cast(self->impl);
-            impl->data          = NULL; // insurance
-            impl->data          = create_dynabuf(REPAIR_SIZE);
-            if(impl->data == NULL)  {
+        case NULL_BUF:
+            self->data          = NULL; // insurance
+            self->data          = create_dynabuf(REPAIR_SIZE);
+            if(self->data == NULL)  {
                 DBG_LOG("Could not create dynabuf with new size %d\n",
                         REPAIR_SIZE);
                 return STATE_INVAL;
             }
-            impl->size          = 0;
-            self->impl          = impl;
+            self->size          = 0;
             return SUCCESS;
         break;
 
@@ -284,12 +236,10 @@ static array_status attempt_repair(proto_list *self)    {
     return STATE_INVAL;
 }
 // size in elements, not bytes
-static array_status check_space_available(proto_list *self, int elements)  {
-    array_impl_t *impl;
+static array_status check_space_available(array_t *self, int elements)  {
     switch(check_valid(self))   {
         case SUCCESS:
-            impl = impl_cast(self->impl);
-            if(impl->size + elements < impl->data->capacity) {
+            if(self->size + elements < self->data->capacity/sizeof(void*)) {
                 return SUCCESS;
             }
             else    {
@@ -303,15 +253,13 @@ static array_status check_space_available(proto_list *self, int elements)  {
     return SUCCESS;
 } 
 
-static array_status array_reallocate(proto_list *self)  {
+array_status array_reallocate(array_t *self)  {
     int status;
     void **newbuf;
-    array_impl_t *impl;
     switch(check_valid(self))   {
         case SUCCESS:
-            impl    = impl_cast(self->impl);
-            switch((status = dynabuf_resize(impl->data,
-                            sizeof(void*)*2*impl->size + 1))) {
+            switch((status = dynabuf_resize(self->data,
+                            sizeof(void*)*(2*self->size + 1)))) {
                 case SUCCESS:
                     return status;
                 break;
@@ -321,15 +269,16 @@ static array_status array_reallocate(proto_list *self)  {
                     return status;
                 break;
             }
-            memset(impl->data->buf + impl->data->capacity, 0,
-                    (impl->data->capacity * 2 + 1) * sizeof(void*));
+            memset(self->data->buf + self->data->capacity, 0,
+                    (self->data->capacity * 2 + 1) * sizeof(void*));
         break;
         
         default:
             if((status = attempt_repair(self)) == SUCCESS) {
                 return array_reallocate(self);
-            }   else    {
-                DBG_LOG("Could not repair array implementation: %d\n", status);
+            }
+            else    {
+                DBG_LOG("Could not repair array selfementation: %d\n", status);
                 return status;
             }
         break;
