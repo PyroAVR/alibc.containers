@@ -1,7 +1,8 @@
 #pragma once
+#include <limits.h>
 typedef enum {
-    SUCCESS,
-    NO_MEM,
+    SUCCESS = 0,
+    NO_MEM = INT_MIN, // u h h  h
     NULL_ARG,
     NULL_IMPL,
     NULL_BUF,
