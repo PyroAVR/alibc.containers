@@ -9,5 +9,7 @@ typedef enum {
     ARG_INVAL,
     IDX_OOB,
     IDX_NEG,
-    STATE_INVAL
+    STATE_INVAL,
+    BAD_PARAM,
+    NULL_HASH
 } alibc_internal_errors;

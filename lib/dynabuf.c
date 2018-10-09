@@ -55,9 +55,11 @@ dynabuf_status dynabuf_resize(dynabuf_t *target, int size) {
 void dynabuf_free(dynabuf_t *target)    {
     if(target == NULL)  {
         return;
-    }   else if(target->buf == NULL) {
+    }
+    else if(target->buf == NULL) {
         free(target);
-    }   else    {
+    }
+    else    {
         free(target->buf);
         free(target);
     }
