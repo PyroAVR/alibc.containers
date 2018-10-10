@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include "include/list.h"
 #include "include/array.h"
 // ideas: 
 // implementation enforcement with macros via IMPLEMENTS(proto)
@@ -16,17 +15,17 @@
 const char *data[] = {"the quick", "brown fox", "jumped over", "the lazy dog"};
 
 int main(void)  {
-    proto_list *array = create_array(2);
+    array_t *array = create_array(2);
     for(int i = 0; i < 4; i++)   {
         printf("%s\n", data[i]);
-        array->append(array, (void*)data[i]);
+        array_append(array, (void*)data[i]);
     }
-    array->swap(array, 0, 3);
-    printf("removed: %s\n", array->remove(array, 1));
-    array->insert(array, 0, "lorem ipsum");
-    for(int i = 0; i < array->size(array); i++) {
-        printf("%s\n", (char*)array->fetch(array, i));
+    array_swap(array, 0, 3);
+    printf("removed: %s\n", array_remove(array, 1));
+    array_insert(array, 0, "lorem ipsum");
+    for(int i = 0; i < array_size(array); i++) {
+        printf("%s\n", (char*)array_fetch(array, i));
     }
-    array->free(array);
+    array_free(array);
     return 0;
 }
