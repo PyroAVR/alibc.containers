@@ -8,7 +8,7 @@ pipeline {
   stages {
     stage('configure') {
       steps {
-        sh '''mkdir build
+        sh '''mkdir -p build
 meson build
 '''
       }
