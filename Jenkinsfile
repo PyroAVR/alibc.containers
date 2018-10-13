@@ -6,14 +6,9 @@ pipeline {
 
   }
   stages {
-    stage('clone') {
-      steps {
-        git(url: 'https://build.apunl.org/stash/scm/alc/extensions.git', branch: 'master')
-        dir(path: 'extensions')
-      }
-    }
     stage('configure') {
       steps {
+        dir(path: 'extensions')
         sh '''mkdir build
 meson build
 '''
