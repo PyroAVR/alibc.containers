@@ -15,9 +15,11 @@ meson build
     }
     stage('build') {
       steps {
-        dir(path: 'build')
-        sh '''ninja
+        dir(path: 'build') {
+          sh '''ninja
 '''
+        }
+
       }
     }
     stage('package') {
