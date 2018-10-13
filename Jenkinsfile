@@ -27,7 +27,7 @@ meson build
     }
     stage('package') {
       steps {
-        archiveArtifacts(artifacts: '*', allowEmptyArchive: true, caseSensitive: true, onlyIfSuccessful: true)
+        archiveArtifacts(artifacts: 'build/*', allowEmptyArchive: true, caseSensitive: true, onlyIfSuccessful: true)
       }
     }
   }
