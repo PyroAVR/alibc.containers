@@ -8,7 +8,6 @@ pipeline {
   stages {
     stage('configure') {
       steps {
-        dir(path: 'extensions')
         sh '''mkdir build
 meson build
 '''
