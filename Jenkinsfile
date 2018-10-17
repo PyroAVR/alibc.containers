@@ -26,8 +26,21 @@ meson build
       }
     }
     stage('package') {
-      steps {
-        archiveArtifacts(artifacts: 'build/*', allowEmptyArchive: true, caseSensitive: true, onlyIfSuccessful: true)
+      parallel {
+        stage('package') {
+          steps {
+            archiveArtifacts(artifacts: 'build/*', allowEmptyArchive: true, caseSensitive: true, onlyIfSuccessful: true)
+          }
+        }
+        stage('test') {
+          steps {
+            dir(path: 'build') {
+              sh '''ninja test
+'''
+            }
+
+          }
+        }
       }
     }
   }
