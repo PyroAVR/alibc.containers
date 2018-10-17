@@ -10,6 +10,7 @@ typedef struct  {
 
 typedef alibc_internal_errors array_status;
 
+// public functions
 array_t *create_array(uint32_t size);
 array_status array_insert(array_t*, int, void*);
 array_status array_append(array_t*, void*);

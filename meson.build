@@ -1,5 +1,14 @@
 # global project def
-project('alibc.extensions', 'c')
+project('alibc/extensions', 'c')
+
+
+# project setup
+# unit test targets
+ext_criterion       = dependency('criterion')
+if ext_criterion.found()
+    # make a debug build target!
+    add_project_arguments('-DDEBUG=1 -ggdb3', language: 'c')
+endif
 
 # headers
 includes    = include_directories('include')
@@ -21,7 +30,14 @@ sl_hashmap_defaults = shared_library('hashmap_defaults',
                                      'lib/hashmap_defaults.c')
 
 
-# unit tests
-executable('arraytest', 'test_array.c', link_with: sl_array)
-executable('hashtest', 'test_hashmap.c',
-           link_with: [sl_hashmap, sl_hashmap_defaults])
+# unit test targets
+if ext_criterion.found()
+    exe_array_test      = executable('arraytest', 'test_array.c',
+                            link_with: sl_array, dependencies: ext_criterion)
+    exe_hashmap_test    = executable('hashtest', 'test_hashmap.c',
+                           link_with: [sl_hashmap, sl_hashmap_defaults])
+
+    # test run targets
+    test('array_test', exe_array_test)
+    test('hash_test', exe_hashmap_test)
+endif

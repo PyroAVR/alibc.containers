@@ -12,14 +12,6 @@
 
 // idea: "hardened" implementations which have data structure checksums
 
-// public functions
-
-
-
-
-// private state
-
-
 // private functions
 static array_status check_valid(array_t*);
 static array_status check_space_available(array_t*, int);
@@ -101,6 +93,7 @@ array_status array_append(array_t *self, void *item)  {
                 return status;
                 break;
             }
+        break;
     }
     return SUCCESS;
 }
@@ -238,7 +231,7 @@ static array_status attempt_repair(array_t *self)    {
 static array_status check_space_available(array_t *self, int elements)  {
     switch(check_valid(self))   {
         case SUCCESS:
-            if(self->size + elements < self->data->capacity/sizeof(void*)) {
+            if(self->size + elements <= self->data->capacity/sizeof(void*)) {
                 return SUCCESS;
             }
             else    {
