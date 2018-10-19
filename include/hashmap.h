@@ -11,6 +11,7 @@ typedef int8_t (cmp_type)(void *, void*);
 
 typedef struct  {
     dynabuf_t *map;
+    dynabuf_t *_filter; // don't touch
     hash_type *hash;
     /*
      *load_type *load;
@@ -26,7 +27,7 @@ typedef struct {
 } kv_pair;
 typedef alibc_internal_errors hashmap_status;
 
-hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn);
+hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size);
 hashmap_status hashmap_set(hashmap_t *self, void *key, void *value);
 void *hashmap_fetch(hashmap_t *self, void *key);
 void *hashmap_remove(hashmap_t *self, void *key);
