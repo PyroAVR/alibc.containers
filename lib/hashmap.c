@@ -2,13 +2,13 @@
 #include "../include/debug.h"
 #include "../include/dynabuf.h"
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 // Private state and types
 #define kv_cast(x) ((kv_pair*)(x))
+#define filter_size_constraint(x) ((x > 8) ? (x >> 3):1)
 
-
-#define starting_size 8
 #define REHASH_RESIZE 0
 #define REHASH_NEWALG 1
 
@@ -16,11 +16,21 @@
 static hashmap_status rehash(hashmap_t *self, int reason);
 static hashmap_status check_valid(hashmap_t *self);
 static hashmap_status check_space_available(hashmap_t *self, int size);
-static kv_pair *kv_malloc(void *, void*);
+static inline int kv_valid(hashmap_t *self, int index);
+static inline void kv_set_valid(hashmap_t *self, int index, int validity);
+/*static kv_pair *kv_malloc(void *, void*);*/
+static int hashmap_locate(hashmap_t *, void *);
 
 
+void dump_table(hashmap_t *self) {
+    for(int i = 0; i < self->capacity; i++) {
+        printf("%s:%d\t\t%d\n", kv_cast(self->map->buf)[i].key, kv_cast(self->map->buf)[i].value, kv_valid(self, i) ? 1:0);
+    }
+    puts("\n");
+}
 
-hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn) {
+
+hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
 
     hashmap_t *r    = malloc(sizeof(hashmap_t));
     if(r == NULL)  {
@@ -28,14 +38,23 @@ hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn) {
         return NULL;
     }
 
-    r->map    = create_dynabuf(starting_size*sizeof(void*));
+    r->map    = create_dynabuf(size*sizeof(kv_pair));
     if(r->map == NULL)    {
         DBG_LOG("Could not create new array for hashmap\n");
         free(r);
         return NULL;
     }
+    // one bit per entry
+    r->_filter  = create_dynabuf(filter_size_constraint(size));
+    if(r->_filter == NULL)    {
+        DBG_LOG("Could not create validity map for hashmap\n");
+        free(r->map);
+        free(r);
+        return NULL;
+    }
 
-    memset(r->map->buf, 0, starting_size);
+    memset(r->map->buf, 0, size*sizeof(kv_pair));
+    memset(r->_filter->buf, 0,filter_size_constraint(size));
 
     r->hash     = hashfn;
     /*
@@ -43,7 +62,7 @@ hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn) {
      */
     r->compare  = comparefn;
     r->entries  = 0;
-    r->capacity = starting_size;
+    r->capacity = size;
 
     
     return r;
@@ -55,7 +74,6 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
     uint32_t    index;
     uint32_t    start_index = 0;
     uint8_t     have_looped = 0;
-    kv_pair *to_insert = NULL;
     switch((status = check_space_available(self, 1)))   {
         case SUCCESS:
             hash        = self->hash(key);
@@ -63,36 +81,24 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
             start_index = index;
             // index guaranteed in range
             // scan for next open entry
-            while(self->map->buf[index] != NULL)    {
-                switch(have_looped) {
-                    case 0:
-                    if(index > self->capacity)  {
-                        have_looped = 1;
-                        index = 0;
+            while(kv_valid(self, index))    {
+                index = (index + 1) % self->capacity;
+                if(index == start_index)    {
+                    DBG_LOG("hashmap was resized on key at:%p\n", key);
+                    switch((status = rehash(self, REHASH_RESIZE)))  {
+                        case SUCCESS:
+                            return hashmap_set(self, key, value);
+                        break;
+                        default:
+                            DBG_LOG("Could not rehash on insert\n");
+                            return status;
                     }
-                    break;
-                    default:
-                        if(index == start_index)    {
-                            DBG_LOG("hashmap was resized on key at:%p\n", key);
-                            switch((status = rehash(self, REHASH_RESIZE)))  {
-                                case SUCCESS:
-                                    return hashmap_set(self, key, value);
-                                break;
-                                default:
-                                    DBG_LOG("Could not rehash on insert\n");
-                                    return status;
-                            }
-                        }
                 }
-                index++;    
             }
+            kv_pair a = { .key = key, .value = value};
+            kv_cast(self->map->buf)[index]  = a;
+            kv_set_valid(self, index, 1);
 
-            to_insert   = kv_malloc(key, value);
-            if(to_insert == NULL)   {
-                DBG_LOG("Could not malloc key-value pair\n");
-                return NO_MEM;
-            }
-            self->map->buf[index]   = to_insert;
             self->entries++;
         break;
 
@@ -114,23 +120,19 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
     }
 }
 
+
 void *hashmap_fetch(hashmap_t *self, void *key) {
     hashmap_status  status;
-    uint32_t        hash;
-    uint32_t        index;
-    kv_pair         *candidate = NULL;
+    int             key_index;
     switch((status = check_valid(self)))    {
         case SUCCESS:
-            hash    = self->hash(key);
-            index   = hash % self->capacity;
-            do  {
-                candidate   = (kv_pair*)self->map->buf[index];
-                index++;
-            }   while(candidate != NULL
-                      && self->compare(key, candidate->key) != 0
-                      && (index - 1) < self->capacity);
-
-            return ((void*)candidate == NULL) ? NULL:candidate->value;
+            key_index = hashmap_locate(self, key);
+            if(key_index != -1) {
+                return kv_cast(self->map->buf)[key_index].value;
+            }
+            else    {
+                return NULL;
+            }
         break;
 
         default:
@@ -142,18 +144,19 @@ void *hashmap_fetch(hashmap_t *self, void *key) {
 
 void *hashmap_remove(hashmap_t *self, void *key)  {
     hashmap_status  status;
-    uint32_t        hash;
-    uint32_t        index;
-    kv_pair         *candidate;
+    int             key_index;
+    void            *value;
     switch((status = check_valid(self)))    {
         case SUCCESS:
-            hash    = self->hash(key);
-            index   = hash % self->capacity;
-            do  {
-                candidate   = (kv_pair*)self->map->buf[index];
-                index++;
-            }   while(self->compare(key, (void*)candidate) != 0);
-            self->map->buf[--index] = NULL;
+            key_index = hashmap_locate(self, key);
+            if(key_index != -1) {
+                value   = kv_cast(self->map->buf)[key_index].value;
+                kv_set_valid(self, key_index, 0);
+                return value;
+            }
+            else    {
+                return NULL;
+            }
         break;
 
         default:
@@ -179,12 +182,8 @@ void hashmap_free(hashmap_t *self)   {
     void *current_item = NULL;
     switch((status = check_valid(self)))    {
         case SUCCESS:
-            for(int i = 0; i < self->capacity; i++)   {
-                if((current_item = self->map->buf[i]) != NULL)  {
-                   free(current_item); 
-                }
-            }
             dynabuf_free(self->map);
+            dynabuf_free(self->_filter);
         case NULL_IMPL:
             free(self);
         break;
@@ -197,13 +196,38 @@ void hashmap_free(hashmap_t *self)   {
 /*
  * Helper functions
  */
+static int hashmap_locate(hashmap_t *self, void *key)  {
+    if(check_valid(self) != SUCCESS)    {
+        return -1;
+    }
+
+    uint32_t    hash        = self->hash(key);
+    uint32_t    index       = hash % self->capacity;
+    uint32_t    start_index = index;
+    int         is_valid    = 0;
+    int         is_equal    = 0;
+    while(!is_equal || !is_valid)   {
+        is_equal = self->compare(key, kv_cast(self->map->buf)[index].key) == 0;
+        is_valid = kv_valid(self, index) != 0;
+        if(is_equal && is_valid)    {
+            return index;
+        }
+        
+        index = (index + 1) % self->capacity;
+        if(index == start_index)    {
+            return -1;
+        }
+
+    }
+}
 // try to rewrite this to recursively re-hash in place via marking each
 // kv pair as whether they're in the correct location or not, and rehashing in
 // storage order until a conflict occurs - then recursively re-hash until no
 // conflicts remain and continue until the end of the list is reached
 static hashmap_status rehash(hashmap_t *self, int reason)   {
     hashmap_status status;
-    dynabuf_t *scratch;
+    dynabuf_t *scratch_map;
+    dynabuf_t *scratch_filter;
     uint32_t new_size;
     switch((status = check_valid(self)))    {
         case SUCCESS:
@@ -219,60 +243,66 @@ static hashmap_status rehash(hashmap_t *self, int reason)   {
                     DBG_LOG("Unknown rehash reason %d ignored.\n", reason);
                     return BAD_PARAM;
             }
-
-            scratch     = create_dynabuf(new_size*sizeof(void*));
-            if(scratch == NULL) {
-                DBG_LOG("Could not create new array with size %d\n",
-                        self->capacity);
-                return NO_MEM;
-            }
-            memset(scratch->buf, 0, new_size);
-            for(uint32_t i = 0; i < self->capacity; i++)    {
-                if(self->map->buf[i] == NULL)   {
-                    continue;
-                }
-                uint32_t hash   = self->hash(kv_cast(self->map->buf[i])->key);
-                uint32_t index  = hash % new_size;
-                uint32_t start_index = index;
-                uint8_t  have_looped = 0;
-                while(scratch->buf[index] != NULL)  {
-                    switch(have_looped) {
-                        case 0:
-                            if(index > new_size - 1)    {
-                                have_looped = 1;
-                                index = 0;
-                            }
-                        break;
-                        default:
-                            if(index == start_index)    {
-                                DBG_LOG(
-                                "Could not find a suitable location "
-                                " to insert hash: %d and new size: %d\n",
-                                hash, new_size);
-                                dynabuf_free(scratch);
-                                return NO_MEM;
-                            }
-                        break;
-                    }
-                    index++;
-                }
-                    scratch->buf[index] = self->map->buf[i];
-            }
-            dynabuf_free(self->map);
-            self->map = scratch;
-            self->capacity = new_size;
         break;
         default:
             DBG_LOG("Invalid status returned from check_valid: %d\n", status);
             return status;
     }
+
+    scratch_map     = create_dynabuf(new_size*sizeof(kv_pair));
+    if(scratch_map == NULL) {
+        DBG_LOG("Could not create new array with size %d\n",
+                self->capacity);
+        return NO_MEM;
+    }
+    
+    scratch_filter  = create_dynabuf(filter_size_constraint(new_size));
+    if(scratch_filter == NULL) {
+        DBG_LOG("Could not create new array with size %d\n",
+                self->capacity);
+        dynabuf_free(scratch_map);
+        return NO_MEM;
+    }
+
+    // clear out the new buffer
+    memset(scratch_map->buf, 0, new_size*sizeof(kv_pair));
+    memset(scratch_filter->buf, 0, filter_size_constraint(new_size));
+
+    for(uint32_t i = 0; i < self->capacity; i++)    {
+        if(!kv_valid(self, i))   {
+            continue;
+        }
+        uint32_t hash   = self->hash(kv_cast(self->map->buf)[i].key);
+        uint32_t index  = hash % new_size;
+        uint32_t start_index = index;
+        uint8_t  have_looped = 0;
+        // scan for next open entry
+        while(((char*)scratch_filter->buf)[index >> 3] & (1 << (index % 8)))  {
+            index = (index + 1) % self->capacity;
+            if(index == start_index)    {
+                DBG_LOG("Could not find a suitable location "
+                " to insert hash: %d and new size: %d\n",
+                hash, new_size);
+                dynabuf_free(scratch_map);
+                dynabuf_free(scratch_filter);
+                return NO_MEM;
+            }
+        }
+        kv_cast(scratch_map->buf)[index] = kv_cast(self->map->buf)[i];
+        ((char*)scratch_filter->buf)[index >> 3] |= (1 << (index % 8));
+    }
+
+    dynabuf_free(self->map);
+    dynabuf_free(self->_filter);
+    self->map       = scratch_map;
+    self->_filter   = scratch_filter;
+    self->capacity  = new_size;
     return SUCCESS;
 }
 
 // possible returns: SUCCESS NULL_ARG NULL_IMPL NULL_ARRAY NULL_HASH NULL_LOAD
 hashmap_status check_valid(hashmap_t *self)    {
-    if(
-            self == NULL)    {
+    if(self == NULL)    {
         return NULL_ARG;
     }
     if(self->map == NULL) {
@@ -289,11 +319,11 @@ hashmap_status check_valid(hashmap_t *self)    {
     return SUCCESS;
 }
 
- hashmap_status check_space_available(hashmap_t *self, int size)  {
+hashmap_status check_space_available(hashmap_t *self, int size)  {
     hashmap_status status;
     switch((status = check_valid(self))) {
         case SUCCESS:
-            return ((self->entries + size) < self->capacity) ? SUCCESS:NO_MEM;
+            return ((self->entries + size) <= self->capacity) ? SUCCESS:NO_MEM;
         break;
         default:
             DBG_LOG("Invalid status returned from check_valid: %d\n", status);
@@ -301,17 +331,37 @@ hashmap_status check_valid(hashmap_t *self)    {
     }
 }
 
+// notably NOT compliant with the status model
+static inline int kv_valid(hashmap_t *self, int index) {
+    int byte_index  = index >> 3;
+    int bit_index   = index % 8;
+    return ((char*)self->_filter->buf)[byte_index] & (1 << bit_index);
+}
 
-static kv_pair *kv_malloc(void *key, void *value)  {
-    kv_pair *r = malloc(sizeof(kv_pair));
-    if(r == NULL)   {
-        return NULL;
-    }   else    {
-        r->key      = key;
-        r->value    = value;
-        return r;
+static inline void kv_set_valid(hashmap_t *self, int index, int validity)  {
+    if(validity > 1) return;
+    int byte_index  = index >> 3;
+    int bit_index   = index % 8;
+    if(validity == 1)   {
+        ((char*)self->_filter->buf)[byte_index] |= (1 << bit_index);
+    }
+    else    {
+        ((char*)self->_filter->buf)[byte_index] &= ~(1 << bit_index);
     }
 }
+
+/*
+ *static kv_pair *kv_malloc(void *key, void *value)  {
+ *    kv_pair *r = malloc(sizeof(kv_pair));
+ *    if(r == NULL)   {
+ *        return NULL;
+ *    }   else    {
+ *        r->key      = key;
+ *        r->value    = value;
+ *        return r;
+ *    }
+ *}
+ */
 
 
 /*
