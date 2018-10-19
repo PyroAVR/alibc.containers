@@ -11,5 +11,6 @@ typedef enum {
     IDX_NEG,
     STATE_INVAL,
     BAD_PARAM,
-    NULL_HASH
+    NULL_HASH,
+    GENERAL_ERROR
 } alibc_internal_errors;

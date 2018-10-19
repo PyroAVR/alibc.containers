@@ -28,7 +28,7 @@ void at_finish(void)    {
     array_free(at_uut);
 }
 
-TestSuite(array_tests, .init=at_init);
+TestSuite(array_tests, .init=at_init, .fini=at_finish);
 
 Test(array_tests, insert)   {
     for(int i = 0; i < 4; i++)  {
