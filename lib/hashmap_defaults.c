@@ -2,19 +2,24 @@
 #include "../include/debug.h"
 #include <string.h>
 
+/*
+ * The strange constants here are to enforce that only the valid and expected
+ * bits of the arguments are considered during hashing and comparison.
+ */
 
 inline int8_t hashmap_cmp_i8(void *a, void *b){
-    uint8_t v   = (0xffULL)&(uint64_t)a - (0xffULL)&(uint64_t)b;
+    uint8_t v   = ((0xffULL)&(uint64_t)a) - ((0xffULL)&(uint64_t)b);
     return (v == 0) ? 0:(v > 0)? 1:-1;
 }
 
 inline int8_t hashmap_cmp_i16(void *a, void *b){
-    uint16_t v   = (0xffffULL)&(uint64_t)a - (0xffffULL)&(uint64_t)b;
+    uint16_t v   = ((0xffffULL)&(uint64_t)a) - ((0xffffULL)&(uint64_t)b);
     return (v == 0) ? 0:(v > 0)? 1:-1;
 }
 
 inline int8_t hashmap_cmp_i32(void *a, void *b){
-    uint32_t v   = (0xffffffffULL)&(uint64_t)a - (0xffffffffULL)&(uint64_t)b;
+    uint32_t v   = ((0xffffffffULL)&(uint64_t)a)
+                    - ((0xffffffffULL)&(uint64_t)b);
     return (v == 0) ? 0:(v > 0)? 1:-1;
 }
 
@@ -24,8 +29,7 @@ inline int8_t hashmap_cmp_i64(void *a, void *b){
 }
 
 inline int8_t hashmap_cmp_ptr(void *a, void *b){
-    uint64_t v   = (uint64_t)a - (uint64_t)b;
-    return (v == 0) ? 0:(v > 0)? 1:-1;
+    return hashmap_cmp_i64(a, b);
 }
 
 inline int8_t hashmap_cmp_str(void *a, void *b){
@@ -60,7 +64,7 @@ uint32_t hashmap_hash_i64(void *val){
     // take first 16 bytes verbatim (high variance in time-local allocations)
     // and last 16 bytes verbatim (high variance in time-dislocal allocations)
     // and hope for the best
-    return (uint64_t)val&(0xffffULL << 48) | (uint64_t)val&(0xffffULL);
+    return ((uint64_t)val&(0xffffULL << 48)) | ((uint64_t)val&(0xffffULL));
 }
 
 uint32_t hashmap_hash_ptr(void *ptr){

@@ -22,12 +22,6 @@ static inline void kv_set_valid(hashmap_t *self, int index, int validity);
 static int hashmap_locate(hashmap_t *, void *);
 
 
-void dump_table(hashmap_t *self) {
-    for(int i = 0; i < self->capacity; i++) {
-        printf("%s:%d\t\t%d\n", kv_cast(self->map->buf)[i].key, kv_cast(self->map->buf)[i].value, kv_valid(self, i) ? 1:0);
-    }
-    puts("\n");
-}
 
 
 hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
@@ -73,7 +67,6 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
     uint32_t    hash;
     uint32_t    index;
     uint32_t    start_index = 0;
-    uint8_t     have_looped = 0;
     switch((status = check_space_available(self, 1)))   {
         case SUCCESS:
             hash        = self->hash(key);
@@ -110,14 +103,14 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
                 break;
                 default:
                     DBG_LOG("Could not resize hashmap buffer\n");
-                    return status;
                 break;
             }
 
         default:
             DBG_LOG("check_valid returned invalid status: %d\n", status);
-            return status;
+        break;
     }
+    return status;
 }
 
 
@@ -179,7 +172,6 @@ uint32_t hashmap_size(hashmap_t *self)   {
 
 void hashmap_free(hashmap_t *self)   {
     int status;
-    void *current_item = NULL;
     switch((status = check_valid(self)))    {
         case SUCCESS:
             dynabuf_free(self->map);
@@ -210,15 +202,17 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
         is_equal = self->compare(key, kv_cast(self->map->buf)[index].key) == 0;
         is_valid = kv_valid(self, index) != 0;
         if(is_equal && is_valid)    {
-            return index;
+            break;
         }
         
         index = (index + 1) % self->capacity;
         if(index == start_index)    {
-            return -1;
+            index = -1;
+            break;
         }
 
     }
+    return index;
 }
 // try to rewrite this to recursively re-hash in place via marking each
 // kv pair as whether they're in the correct location or not, and rehashing in
@@ -275,8 +269,10 @@ static hashmap_status rehash(hashmap_t *self, int reason)   {
         uint32_t hash   = self->hash(kv_cast(self->map->buf)[i].key);
         uint32_t index  = hash % new_size;
         uint32_t start_index = index;
-        uint8_t  have_looped = 0;
         // scan for next open entry
+        // the condition here is the same as kv_valid, but as we do not have
+        // a valid 'self' for this entry, we have to re-write it here
+        // FIXME this should not be the case.
         while(((char*)scratch_filter->buf)[index >> 3] & (1 << (index % 8)))  {
             index = (index + 1) % self->capacity;
             if(index == start_index)    {
@@ -377,5 +373,13 @@ static inline void kv_set_valid(hashmap_t *self, int index, int validity)  {
  *            return 0;
  *        break;
  *    }
+ *}
+ */
+/*
+ *static void dump_table(hashmap_t *self) {
+ *    for(int i = 0; i < self->capacity; i++) {
+ *        printf("%s:%d\t\t%d\n", kv_cast(self->map->buf)[i].key, kv_cast(self->map->buf)[i].value, kv_valid(self, i) ? 1:0);
+ *    }
+ *    puts("\n");
  *}
  */

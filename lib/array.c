@@ -15,7 +15,7 @@
 // private functions
 static array_status check_valid(array_t*);
 static array_status check_space_available(array_t*, int);
-static array_status attempt_repair(array_t*);
+/*static array_status attempt_repair(array_t*);*/
 static array_status array_reallocate(array_t*);
 
 array_t *create_array(uint32_t size) {
@@ -31,6 +31,8 @@ array_t *create_array(uint32_t size) {
         return NULL;
     }
 
+    // zeroing-out the array allows swaps to swap-in NULL values, which is 
+    // cleaner for the end-user.
     memset(r->data->buf, 0, size);
     r->size          = 0;
 
@@ -45,7 +47,10 @@ array_status array_insert(array_t *self, int where, void *item)   {
                 DBG_LOG("Attempted insert beyond end of array.\n");
                 return IDX_OOB;
             }
+            // decay to append operation if no swap is needed
             if(where != self->size) {
+                // swapping allows for constant-time insertion, but 
+                // changes the order of unrelated objects.
                 array_swap(self, where, self->size);
             }
             self->data->buf[where]   = item;
@@ -53,6 +58,7 @@ array_status array_insert(array_t *self, int where, void *item)   {
         break;
 
         case NO_MEM:
+            // try to allocate more space to store this item
             if(array_reallocate(self) == SUCCESS)   {
                 DBG_LOG("realloc successful pre-insertion\n");
                 return array_insert(self, where, item);
@@ -62,7 +68,7 @@ array_status array_insert(array_t *self, int where, void *item)   {
         break;
         
         default:
-            DBG_LOG("No space was available and state was otherwise invalid\n");
+            DBG_LOG("Array state was invalid on insert operation\n");
         break;
     }
     return SUCCESS;
@@ -75,6 +81,7 @@ array_status array_append(array_t *self, void *item)  {
         case SUCCESS:
             self->data->buf[self->size++] = item;
         break;
+
         case NO_MEM:
             DBG_LOG("realloc needed\n");
             if((status = array_reallocate(self)) == SUCCESS)    {
@@ -84,15 +91,9 @@ array_status array_append(array_t *self, void *item)  {
                 return NO_MEM;
             }
         break;
+        
         default:
-            switch((status = attempt_repair(self)))    {
-                case SUCCESS:
-                    return array_append(self, item);
-                break;
-                default: 
-                return status;
-                break;
-            }
+            DBG_LOG("Array state was invalid on append operation\n");
         break;
     }
     return SUCCESS;
@@ -110,7 +111,9 @@ void *array_fetch(array_t *self, int which)    {
                 return self->data->buf[which];
             }
         break;
+
         default:
+            DBG_LOG("Array state was invalid on fetch operation\n");
             return NULL;
     }
 }
@@ -127,10 +130,13 @@ void *array_remove(array_t *self, int which)  {
             else    {
                 array_swap(self, which, self->size -1);
                 self->size--;
+                // the item specified by 'which' is now at the end of the array,
+                // in the space after size
                 return self->data->buf[self->size -1];
             }
         break;
         default:
+            DBG_LOG("Array state was invalid on remove operation\n");
             return NULL;
         break;
 
@@ -141,6 +147,7 @@ array_status array_swap(array_t *self, int first, int second)    {
     int status;
     switch((status = check_valid(self)))   {
         case SUCCESS:
+            // triple-xor swap
             self->data->buf[first]   = 
                 (void*)((uint64_t)self->data->buf[first]
                 ^ (uint64_t)self->data->buf[second]);
@@ -150,6 +157,7 @@ array_status array_swap(array_t *self, int first, int second)    {
             self->data->buf[first]   =
                 (void*)((uint64_t)self->data->buf[first]
                 ^ (uint64_t)self->data->buf[second]);
+            // fall through here
         default:
             return status;
         break;
@@ -158,13 +166,14 @@ array_status array_swap(array_t *self, int first, int second)    {
 }
 
 int array_size(array_t *self) {
-    int status;
-    if((status = check_valid(self)) != SUCCESS)   {
-        if(attempt_repair(self) != SUCCESS) {
-            return status;
-        }
+    switch(check_valid(self))   {
+        case SUCCESS:
+            return self->size;
+        break;
+
+        default:
+            return -1;
     }
-    return self->size;
 }
 
 void array_free(array_t *self)    {
@@ -200,33 +209,40 @@ static array_status check_valid(array_t *self)    {
     return SUCCESS;
 }
 
-
-static array_status attempt_repair(array_t *self)    {
-    switch(check_valid(self))   {
-        case SUCCESS: return SUCCESS;
-        case STATE_INVAL:
-        break;
-        case NULL_ARG:
-            DBG_LOG("self was null\n");
-            return NULL_ARG;
-        break;
-        case NULL_BUF:
-            self->data          = NULL; // insurance
-            self->data          = create_dynabuf(REPAIR_SIZE);
-            if(self->data == NULL)  {
-                DBG_LOG("Could not create dynabuf with new size %d\n",
-                        REPAIR_SIZE);
-                return STATE_INVAL;
-            }
-            self->size          = 0;
-            return SUCCESS;
-        break;
-
-        default:
-            return STATE_INVAL;
-    }
-    return STATE_INVAL;
-}
+/*
+ * FIXME should this even be included here?
+ * serious memory errors cannot be repaired automatically without system
+ * intervention, and 'repairs' happening automatically could have adverse 
+ * effect on debugging.
+ */
+/*
+ *static array_status attempt_repair(array_t *self)    {
+ *    switch(check_valid(self))   {
+ *        case SUCCESS: return SUCCESS;
+ *        case STATE_INVAL:
+ *        break;
+ *        case NULL_ARG:
+ *            DBG_LOG("self was null\n");
+ *            return NULL_ARG;
+ *        break;
+ *        case NULL_BUF:
+ *            self->data          = NULL; // insurance
+ *            self->data          = create_dynabuf(REPAIR_SIZE);
+ *            if(self->data == NULL)  {
+ *                DBG_LOG("Could not create dynabuf with new size %d\n",
+ *                        REPAIR_SIZE);
+ *                return STATE_INVAL;
+ *            }
+ *            self->size          = 0;
+ *            return SUCCESS;
+ *        break;
+ *
+ *        default:
+ *            return STATE_INVAL;
+ *    }
+ *    return STATE_INVAL;
+ *}
+ */
 // size in elements, not bytes
 static array_status check_space_available(array_t *self, int elements)  {
     switch(check_valid(self))   {
@@ -247,18 +263,15 @@ static array_status check_space_available(array_t *self, int elements)  {
 
 array_status array_reallocate(array_t *self)  {
     int status;
-    void **newbuf;
-    switch(check_valid(self))   {
+    switch((status = check_valid(self)))   {
         case SUCCESS:
             switch((status = dynabuf_resize(self->data,
                             sizeof(void*)*(2*self->size + 1)))) {
                 case SUCCESS:
-                    return status;
                 break;
 
                 default:
                     DBG_LOG("Could not realloc dynabuf\n");
-                    return status;
                 break;
             }
             memset(self->data->buf + self->data->capacity, 0,
@@ -266,16 +279,19 @@ array_status array_reallocate(array_t *self)  {
         break;
         
         default:
-            if((status = attempt_repair(self)) == SUCCESS) {
-                return array_reallocate(self);
-            }
-            else    {
-                DBG_LOG("Could not repair array selfementation: %d\n", status);
-                return status;
-            }
+            DBG_LOG("Array state was invalid on resize operation\n");
+            /*
+             *if((status = attempt_repair(self)) == SUCCESS) {
+             *    return array_reallocate(self);
+             *}
+             *else    {
+             *    DBG_LOG("Could not repair array selfementation: %d\n", status);
+             *    return status;
+             *}
+             */
         break;
     }
-    return SUCCESS;
+    return status;
 }
 
 //todo: 
