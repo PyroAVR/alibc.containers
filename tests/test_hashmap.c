@@ -37,6 +37,9 @@ Test(hash_tests, test_remove)   {
         cr_assert_eq(result, i + 1, "map contains invalid entry for key %s:%d",
                 names[i], result); 
     }
+    cr_assert_null(hashmap_remove(ht_uut, "two hundred twenty one"), 
+                    "removal of key not in map returned non-null");
+
     for(uint64_t i = 0; i < 10; i++)    {
         uint64_t result = (uint64_t)hashmap_fetch(ht_uut, (void*)names[i]);
         cr_assert_null(result, "got result: %d for key: %s", result, names[i]);
