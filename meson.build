@@ -27,6 +27,10 @@ sl_hashmap  = shared_library('hashmap', 'lib/hashmap.c',
 sl_hashmap_defaults = shared_library('hashmap_defaults',
                                      'lib/hashmap_defaults.c')
 
+sl_bitmap   = shared_library('bitmap', 'lib/bitmap.c',
+                             include_directories: includes,
+                             link_with: sl_dynabuf)
+
 
 # unit test targets
 ext_criterion       = dependency('criterion')
@@ -37,7 +41,11 @@ if ext_criterion.found()
                            link_with: [sl_hashmap, sl_hashmap_defaults],
                            dependencies: ext_criterion)
 
+    exe_bitmap_test     = executable('bitmaptest', 'tests/test_bitmap.c',
+                            link_with: sl_bitmap, dependencies: ext_criterion)
+
     # test run targets
     test('array_test', exe_array_test)
     test('hash_test', exe_hashmap_test)
+    test('bitmap_test', exe_bitmap_test)
 endif
