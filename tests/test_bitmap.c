@@ -53,8 +53,10 @@ Test(bitmap_tests, contains) {
     cr_assert(bitmap_contains(bm_uut, 5), "could not find 5");
 }
 
-Test(bitmap_tests, resize) {
-    bitmap_resize(bm_uut, 65536);
-    bitmap_add(bm_uut, 41139);
-    cr_assert(bitmap_contains(bm_uut, 41139) > 0, "41139 not in bitmap");
-}
+/*
+ *Test(bitmap_tests, resize) {
+ *    bitmap_resize(bm_uut, 65536);
+ *    bitmap_add(bm_uut, 41139);
+ *    cr_assert(bitmap_contains(bm_uut, 41139) > 0, "41139 not in bitmap");
+ *}
+ */
