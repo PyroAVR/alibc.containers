@@ -1,6 +1,7 @@
 #include "../include/hashmap.h"
 #include "../include/debug.h"
 #include "../include/dynabuf.h"
+#include "../include/bitmap.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -16,9 +17,6 @@
 static hashmap_status rehash(hashmap_t *self, int reason);
 static hashmap_status check_valid(hashmap_t *self);
 static hashmap_status check_space_available(hashmap_t *self, int size);
-static inline int kv_valid(hashmap_t *self, int index);
-static inline void kv_set_valid(hashmap_t *self, int index, int validity);
-/*static kv_pair *kv_malloc(void *, void*);*/
 static int hashmap_locate(hashmap_t *, void *);
 
 
@@ -39,10 +37,10 @@ hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
         return NULL;
     }
     // one bit per entry
-    r->_filter  = create_dynabuf(filter_size_constraint(size));
+    r->_filter  = create_bitmap(size);
     if(r->_filter == NULL)    {
         DBG_LOG("Could not create validity map for hashmap\n");
-        free(r->map);
+        dynabuf_free(r->map);
         free(r);
         return NULL;
     }
@@ -74,7 +72,7 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
             start_index = index;
             // index guaranteed in range
             // scan for next open entry
-            while(kv_valid(self, index))    {
+            while(bitmap_contains(self->_filter, index))    {
                 index = (index + 1) % self->capacity;
                 if(index == start_index)    {
                     DBG_LOG("hashmap was resized on key at:%p\n", key);
@@ -90,7 +88,7 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
             }
             kv_pair a = { .key = key, .value = value};
             kv_cast(self->map->buf)[index]  = a;
-            kv_set_valid(self, index, 1);
+            bitmap_add(self->_filter, index);
 
             self->entries++;
         break;
@@ -144,7 +142,7 @@ void *hashmap_remove(hashmap_t *self, void *key)  {
             key_index = hashmap_locate(self, key);
             if(key_index != -1) {
                 value   = kv_cast(self->map->buf)[key_index].value;
-                kv_set_valid(self, key_index, 0);
+                bitmap_remove(self->_filter, key_index);
                 return value;
             }
             else    {
@@ -175,7 +173,7 @@ void hashmap_free(hashmap_t *self)   {
     switch((status = check_valid(self)))    {
         case SUCCESS:
             dynabuf_free(self->map);
-            dynabuf_free(self->_filter);
+            bitmap_free(self->_filter);
         case NULL_IMPL:
             free(self);
         break;
@@ -200,7 +198,7 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
     int         is_equal    = 0;
     while(!is_equal || !is_valid)   {
         is_equal = self->compare(key, kv_cast(self->map->buf)[index].key) == 0;
-        is_valid = kv_valid(self, index) != 0;
+        is_valid = bitmap_contains(self->_filter, index) != 0;
         if(is_equal && is_valid)    {
             break;
         }
@@ -250,7 +248,7 @@ static hashmap_status rehash(hashmap_t *self, int reason)   {
         return NO_MEM;
     }
     
-    scratch_filter  = create_dynabuf(filter_size_constraint(new_size));
+    scratch_filter  = create_bitmap(new_size);
     if(scratch_filter == NULL) {
         DBG_LOG("Could not create new array with size %d\n",
                 self->capacity);
@@ -263,7 +261,7 @@ static hashmap_status rehash(hashmap_t *self, int reason)   {
     memset(scratch_filter->buf, 0, filter_size_constraint(new_size));
 
     for(uint32_t i = 0; i < self->capacity; i++)    {
-        if(!kv_valid(self, i))   {
+        if(!bitmap_contains(self->_filter, i))   {
             continue;
         }
         uint32_t hash   = self->hash(kv_cast(self->map->buf)[i].key);
@@ -273,23 +271,23 @@ static hashmap_status rehash(hashmap_t *self, int reason)   {
         // the condition here is the same as kv_valid, but as we do not have
         // a valid 'self' for this entry, we have to re-write it here
         // FIXME this should not be the case.
-        while(((char*)scratch_filter->buf)[index >> 3] & (1 << (index % 8)))  {
+        while(bitmap_contains(scratch_filter, index))  {
             index = (index + 1) % self->capacity;
             if(index == start_index)    {
                 DBG_LOG("Could not find a suitable location "
                 " to insert hash: %d and new size: %d\n",
                 hash, new_size);
                 dynabuf_free(scratch_map);
-                dynabuf_free(scratch_filter);
+                bitmap_free(scratch_filter);
                 return NO_MEM;
             }
         }
         kv_cast(scratch_map->buf)[index] = kv_cast(self->map->buf)[i];
-        ((char*)scratch_filter->buf)[index >> 3] |= (1 << (index % 8));
+        bitmap_add(scratch_filter, index);
     }
 
     dynabuf_free(self->map);
-    dynabuf_free(self->_filter);
+    bitmap_free(self->_filter);
     self->map       = scratch_map;
     self->_filter   = scratch_filter;
     self->capacity  = new_size;
@@ -326,38 +324,6 @@ hashmap_status check_space_available(hashmap_t *self, int size)  {
             return status;
     }
 }
-
-// notably NOT compliant with the status model
-static inline int kv_valid(hashmap_t *self, int index) {
-    int byte_index  = index >> 3;
-    int bit_index   = index % 8;
-    return ((char*)self->_filter->buf)[byte_index] & (1 << bit_index);
-}
-
-static inline void kv_set_valid(hashmap_t *self, int index, int validity)  {
-    if(validity > 1) return;
-    int byte_index  = index >> 3;
-    int bit_index   = index % 8;
-    if(validity == 1)   {
-        ((char*)self->_filter->buf)[byte_index] |= (1 << bit_index);
-    }
-    else    {
-        ((char*)self->_filter->buf)[byte_index] &= ~(1 << bit_index);
-    }
-}
-
-/*
- *static kv_pair *kv_malloc(void *key, void *value)  {
- *    kv_pair *r = malloc(sizeof(kv_pair));
- *    if(r == NULL)   {
- *        return NULL;
- *    }   else    {
- *        r->key      = key;
- *        r->value    = value;
- *        return r;
- *    }
- *}
- */
 
 
 /*

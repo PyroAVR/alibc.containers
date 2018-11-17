@@ -1,5 +1,6 @@
 #include "errors.h"
 #include "dynabuf.h"
+#include "bitmap.h"
 #include <stdint.h>
 
 /**
@@ -27,7 +28,7 @@ typedef int8_t (cmp_type)(void *, void*);
  */
 typedef struct  {
     dynabuf_t *map;
-    dynabuf_t *_filter; // don't touch
+    bitmap_t *_filter; // don't touch
     hash_type *hash;
     /*
      *load_type *load;
