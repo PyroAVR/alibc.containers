@@ -34,7 +34,8 @@ array_t *create_array(uint32_t size) {
     // zeroing-out the array allows swaps to swap-in NULL values, which is 
     // cleaner for the end-user.
     memset(r->data->buf, 0, size);
-    r->size          = 0;
+    r->size     = 0;
+    r->status   = SUCCESS;
 
     return r;
 }
@@ -55,6 +56,7 @@ array_status array_insert(array_t *self, int where, void *item)   {
             }
             self->data->buf[where]   = item;
             self->size++;
+            self->status = SUCCESS;
         break;
 
         case NO_MEM:
@@ -64,13 +66,16 @@ array_status array_insert(array_t *self, int where, void *item)   {
                 return array_insert(self, where, item);
             }
             DBG_LOG("No space to insert new item. Ignoring.\n");
+            self->status = NO_MEM;
             return NO_MEM;
         break;
         
         default:
             DBG_LOG("Array state was invalid on insert operation\n");
+            self->status = STATE_INVAL;
         break;
     }
+    self->status = SUCCESS;
     return SUCCESS;
 }
 
@@ -88,14 +93,17 @@ array_status array_append(array_t *self, void *item)  {
                 return array_append(self, item);
             }
             else    {
+                self->status = NO_MEM;
                 return NO_MEM;
             }
         break;
         
         default:
             DBG_LOG("Array state was invalid on append operation\n");
+            self->status = STATE_INVAL;
         break;
     }
+    self->status = SUCCESS;
     return SUCCESS;
 }
 
@@ -105,15 +113,18 @@ void *array_fetch(array_t *self, int which)    {
         case SUCCESS:
             if(which > self->size) {
                 DBG_LOG("Requested fetch index was out of bounds: %d\n", which);
+                self->status = IDX_OOB;
                 return NULL;
             }
             else  {
+                self->status = SUCCESS;
                 return self->data->buf[which];
             }
         break;
 
         default:
             DBG_LOG("Array state was invalid on fetch operation\n");
+            self->status = STATE_INVAL;
             return NULL;
     }
 }
@@ -125,6 +136,7 @@ void *array_remove(array_t *self, int which)  {
             if(which > self->size)  {
                 DBG_LOG("Requested remove index was out of bounds: %d\n",
                         which);
+                self->status = IDX_OOB;
                 return NULL;
             }
             else    {
@@ -132,11 +144,13 @@ void *array_remove(array_t *self, int which)  {
                 self->size--;
                 // the item specified by 'which' is now at the end of the array,
                 // in the space after size
+                self->status = SUCCESS;
                 return self->data->buf[self->size -1];
             }
         break;
         default:
             DBG_LOG("Array state was invalid on remove operation\n");
+            self->status = STATE_INVAL;
             return NULL;
         break;
 
@@ -168,10 +182,12 @@ array_status array_swap(array_t *self, int first, int second)    {
 int array_size(array_t *self) {
     switch(check_valid(self))   {
         case SUCCESS:
+            self->status = SUCCESS;
             return self->size;
         break;
 
         default:
+            self->status = STATE_INVAL;
             return -1;
     }
 }
@@ -192,7 +208,9 @@ void array_free(array_t *self)    {
     }
 }
 
-
+inline int array_okay(array_t *self)    {
+    return self->status;
+}
 /*
  *Helper functions
  */

@@ -33,9 +33,10 @@ typedef struct  {
     /*
      *load_type *load;
      */
-    cmp_type  *compare;
-    uint32_t entries;
-    uint32_t capacity;
+    cmp_type    *compare;
+    uint32_t    entries;
+    uint32_t    capacity;
+    uint32_t    status;
 } hashmap_t;
 
 
@@ -100,6 +101,13 @@ uint32_t hashmap_size(hashmap_t *self);
  * @param self the hashmap to free
  */
 void hashmap_free(hashmap_t *self);
+
+/*
+ * Ascertain the status of the previous operation
+ * @param self the hashmap to validate
+ * @return the alibc/extensions error code, zero if successful.
+ */
+int hashmap_okay(hashmap_t *self);
 
 /*
  * Comparison functions provided as sensible defaults.  Note that the

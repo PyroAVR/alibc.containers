@@ -36,7 +36,6 @@ hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
         free(r);
         return NULL;
     }
-    // one bit per entry
     r->_filter  = create_bitmap(size);
     if(r->_filter == NULL)    {
         DBG_LOG("Could not create validity map for hashmap\n");
@@ -55,7 +54,7 @@ hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
     r->compare  = comparefn;
     r->entries  = 0;
     r->capacity = size;
-
+    r->status   = SUCCESS;
     
     return r;
 }
@@ -82,6 +81,7 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
                         break;
                         default:
                             DBG_LOG("Could not rehash on insert\n");
+                            self->status = status;
                             return status;
                     }
                 }
@@ -89,7 +89,6 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
             kv_pair a = { .key = key, .value = value};
             kv_cast(self->map->buf)[index]  = a;
             bitmap_add(self->_filter, index);
-
             self->entries++;
         break;
 
@@ -103,11 +102,13 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
                     DBG_LOG("Could not resize hashmap buffer\n");
                 break;
             }
+        break;
 
         default:
             DBG_LOG("check_valid returned invalid status: %d\n", status);
         break;
     }
+    self->status = status;
     return status;
 }
 
@@ -122,12 +123,14 @@ void *hashmap_fetch(hashmap_t *self, void *key) {
                 return kv_cast(self->map->buf)[key_index].value;
             }
             else    {
+                self->status = status;
                 return NULL;
             }
         break;
 
         default:
             DBG_LOG("check_valid returned invalid status: %d\n", status);
+            self->status = status;
             return NULL;
     }
 }
@@ -160,11 +163,13 @@ uint32_t hashmap_size(hashmap_t *self)   {
     hashmap_status status;
     switch((status = check_valid(self)))   {
         case SUCCESS:
+            self->status = status;
             return self->entries;
         break;
         default:
             DBG_LOG("Invalid status returned from check_valid: %d\n", status);
-            return 0;
+            self->status = status;
+            return -1;
     }
 }
 
@@ -181,6 +186,13 @@ void hashmap_free(hashmap_t *self)   {
             DBG_LOG("Attempted to free an invalid hashmap\n");
         break;
     }
+}
+
+inline int hashmap_okay(hashmap_t *self)   {
+    if(check_valid(self) != SUCCESS) {
+        return NULL_ARG;
+    }
+    return self->status;
 }
 
 /*

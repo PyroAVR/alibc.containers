@@ -21,9 +21,9 @@
  * array type definition
  */
 typedef struct  {
-    dynabuf_t *data;
-    uint32_t size;
-    uint8_t status;
+    dynabuf_t   *data;
+    uint32_t    size;
+    uint32_t    status;
 } array_t;
 
 /*
@@ -94,3 +94,10 @@ int array_size(array_t *self);
  * @param self the array to free
  */
 void array_free(array_t *self);
+
+/*
+ * Ascertain the status of the previous operation
+ * @param self the array to validate
+ * @return the alibc/extensions error code, zero if successful.
+ */
+int array_okay(array_t *self);
