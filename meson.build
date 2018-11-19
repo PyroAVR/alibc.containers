@@ -1,6 +1,17 @@
 # global project def
 project('alibc/extensions', 'c')
 
+# project constants
+_HEADERS = ['include/errors.h',
+            'include/debug.h',
+            'include/dynabuf.h',
+            'include/array.h',
+            'include/hashmap.h',
+            'include/set.h',
+            'include/bitmap.h',
+            'include/debug.h']
+
+
 
 # project setup
 if get_option('buildtype') == 'debug'
@@ -13,28 +24,52 @@ includes    = include_directories('include')
 
 
 # shared libraries
-sl_dynabuf  = shared_library('dynabuf', 'lib/dynabuf.c',
-                              include_directories: includes)
+sl_dynabuf  = library('alc_dynabuf', 'lib/dynabuf.c',
+                       include_directories: includes,
+                       install: true)
 
-sl_array    = shared_library('array', 'lib/array.c',
+sl_array    = library('alc_array', 'lib/array.c',
+                       include_directories: includes,
+                       link_with: sl_dynabuf,
+                       install: true)
+
+sl_bitmap   = library('alc_bitmap', 'lib/bitmap.c',
+                      include_directories: includes,
+                      link_with: sl_dynabuf,
+                      install: true)
+
+sl_hashmap  = library('alc_hashmap', 'lib/hashmap.c',
                               include_directories: includes,
-                              link_with: sl_dynabuf)
+                              link_with: [sl_dynabuf, sl_bitmap],
+                              install: true)
 
-sl_bitmap   = shared_library('bitmap', 'lib/bitmap.c',
+sl_hashmap_defaults = library('alc_hashmap_defaults',
+                                     'lib/hashmap_defaults.c',
+                                     install: true)
+
+sl_set      = library('alc_set', 'lib/set.c',
                              include_directories: includes,
-                             link_with: sl_dynabuf)
+                             link_with: [sl_bitmap, sl_dynabuf],
+                             install: true)
 
-sl_hashmap  = shared_library('hashmap', 'lib/hashmap.c',
-                              include_directories: includes,
-                              link_with: [sl_dynabuf, sl_bitmap])
+# external dependency creation, for subproject builds with Meson
+dep_dynabuf = declare_dependency(include_directories: includes,
+                                 link_with: sl_dynabuf)
 
-sl_hashmap_defaults = shared_library('hashmap_defaults',
-                                     'lib/hashmap_defaults.c')
+dep_array   = declare_dependency(include_directories: includes,
+                                 link_with: [sl_array, sl_dynabuf])
 
-sl_set      = shared_library('set', 'lib/set.c',
-                             include_directories: includes,
-                             link_with: [sl_bitmap, sl_dynabuf])
+dep_bitmap  = declare_dependency(include_directories: includes,
+                                 link_with: [sl_bitmap, sl_dynabuf])
 
+dep_hashmap = declare_dependency(include_directories: includes,
+                                 link_with: [sl_hashmap, sl_bitmap, sl_dynabuf])
+
+dep_hashmap_funcs   = declare_dependency(include_directories: includes,
+                                         link_with: sl_hashmap_defaults)
+
+dep_set     = declare_dependency(include_directories: includes,
+                                 link_with: [sl_set, sl_bitmap, sl_dynabuf])
 
 # unit test targets
 ext_criterion       = dependency('criterion')
@@ -58,3 +93,9 @@ if ext_criterion.found()
     test('bitmap_test', exe_bitmap_test)
     test('set_test', exe_set_test)
 endif
+
+# installation config
+
+# headers
+install_headers(_HEADERS, subdir: 'alibc/extensions')
+

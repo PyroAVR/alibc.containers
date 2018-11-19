@@ -215,7 +215,7 @@ int set_size(set_t *self){
     }
     r = self->entries;
 finish:
-    return -1;
+    return r;
 }
 
 
