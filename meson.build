@@ -1,5 +1,16 @@
 # global project def
-project('alibc/extensions', 'c')
+project('alibc.extensions', 'c')
+
+# project constants
+_HEADERS = ['include/errors.h',
+            'include/debug.h',
+            'include/dynabuf.h',
+            'include/array.h',
+            'include/hashmap.h',
+            'include/set.h',
+            'include/bitmap.h',
+            'include/debug.h']
+
 
 # project constants
 _HEADERS = ['include/errors.h',
