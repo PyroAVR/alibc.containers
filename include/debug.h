@@ -1,3 +1,4 @@
+#pragma once
 #ifdef DEBUG
 #include <stdio.h>
 #define DBG_LOG(x, ...) {\

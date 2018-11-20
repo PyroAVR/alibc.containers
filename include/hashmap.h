@@ -1,3 +1,4 @@
+#pragma once
 #include "errors.h"
 #include "dynabuf.h"
 #include "bitmap.h"
