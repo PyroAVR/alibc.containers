@@ -1,4 +1,4 @@
-#include "../include/bitmap.h"
+#include <alibc/extensions/bitmap.h>
 #include <stdlib.h>
 
 bitmap_t *create_bitmap(int max) {

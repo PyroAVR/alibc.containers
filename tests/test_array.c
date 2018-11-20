@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include "include/array.h"
+#include <alibc/extensions/array.h>
 #include <criterion/criterion.h>
 // ideas: 
 // implementation enforcement with macros via IMPLEMENTS(proto)

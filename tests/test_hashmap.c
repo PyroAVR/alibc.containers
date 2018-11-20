@@ -1,4 +1,4 @@
-#include "include/hashmap.h"
+#include <alibc/extensions/hashmap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

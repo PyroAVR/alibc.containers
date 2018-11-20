@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include "include/bitmap.h"
+#include <alibc/extensions/bitmap.h>
 #include <criterion/criterion.h>
 
 bitmap_t *bm_uut;

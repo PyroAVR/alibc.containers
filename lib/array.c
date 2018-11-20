@@ -1,7 +1,7 @@
-#include "../include/array.h"
-#include "../include/dynabuf.h"
-#include "../include/errors.h"
-#include "../include/debug.h"
+#include <alibc/extensions/array.h>
+#include <alibc/extensions/dynabuf.h>
+#include <alibc/extensions/errors.h>
+#include <alibc/extensions/debug.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>

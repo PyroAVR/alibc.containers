@@ -1,6 +1,6 @@
-#include "../include/set.h"
-#include "../include/dynabuf.h"
-#include "../include/debug.h"
+#include <alibc/extensions/set.h>
+#include <alibc/extensions/dynabuf.h>
+#include <alibc/extensions/debug.h>
 #include <stdlib.h>
 #include <string.h>
 

@@ -1,7 +1,7 @@
-#include "../include/hashmap.h"
-#include "../include/debug.h"
-#include "../include/dynabuf.h"
-#include "../include/bitmap.h"
+#include <alibc/extensions/hashmap.h>
+#include <alibc/extensions/debug.h>
+#include <alibc/extensions/dynabuf.h>
+#include <alibc/extensions/bitmap.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>

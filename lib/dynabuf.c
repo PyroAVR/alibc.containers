@@ -1,5 +1,5 @@
-#include "../include/debug.h"
-#include "../include/dynabuf.h"
+#include <alibc/extensions/debug.h>
+#include <alibc/extensions/dynabuf.h>
 #include <stdlib.h>
 #include <string.h>
 

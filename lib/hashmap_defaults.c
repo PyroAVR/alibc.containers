@@ -1,5 +1,5 @@
-#include "../include/hashmap.h"
-#include "../include/debug.h"
+#include <alibc/extensions/hashmap.h>
+#include <alibc/extensions/debug.h>
 #include <string.h>
 
 /*
