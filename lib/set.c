@@ -225,6 +225,13 @@ finish:
  *}
  */
 
+int set_okay(set_t *self) {
+    int status = SET_SUCCESS;
+    if((status = check_valid(self)) == SET_SUCCESS) {
+        status = self->status;
+    }
+    return status;
+}
 
 void set_free(set_t *self) {
     if(self == NULL) {
@@ -293,17 +300,26 @@ static int set_locate(set_t *self, void *item) {
     uint8_t     is_valid    = 0;
     uint8_t     is_equal    = 0;
     while(!is_equal || !is_valid) {
+        uint8_t null_check = 0;
+
         is_valid = bitmap_contains(self->_filter, index) != 0;
-        if(self->buf->buf[index] == NULL) {
-            if(item == NULL) {
-                return index;
+        if(is_valid) {
+            null_check  = self->buf->buf[index] == NULL;
+            null_check  |= ((item == NULL) << 1);
+            switch(null_check) {
+                case 0:
+                    is_equal = self->compare(item, self->buf->buf[index]) == 0;
+                break;
+
+                case 1:
+                case 2:
+                    is_equal = 0; 
+                break;
+
+                case 3:
+                    is_equal = 1;
+                break;
             }
-            else {
-                is_equal = 0;
-            }
-        }
-        else {
-            is_equal = self->compare(item, self->buf->buf[index]) == 0;
         }
 
         if(is_valid && is_equal) {

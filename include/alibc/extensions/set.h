@@ -118,6 +118,12 @@ int set_contains(set_t *self, void *item);
 int set_size(set_t *self);
 
 /*
+ * Return the status of the most recent set operation.
+ * @param self the set to evaluate
+ */
+int set_okay(set_t *self);
+
+/*
  * Destroy the set and free all memory allocated by it.
  * @param self the set to destroy
  */

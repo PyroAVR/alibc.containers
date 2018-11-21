@@ -34,6 +34,11 @@ Test(set_tests, add) {
         cr_assert(set_contains(set_uut, items[i]),
                 "could not find %s in set", items[i]);
     }
+
+    uint64_t result = set_contains(set_uut, "we live, as we dream... alone.");
+    cr_assert_eq(result, 0, "found an item which was not added to the set.");
+    cr_assert_eq(set_okay(set_uut), SET_NOTFOUND);
+
 }
 
 Test(set_tests, remove) {

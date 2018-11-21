@@ -120,10 +120,11 @@ void *hashmap_fetch(hashmap_t *self, void *key) {
         case SUCCESS:
             key_index = hashmap_locate(self, key);
             if(key_index != -1) {
+                self->status = SUCCESS;
                 return kv_cast(self->map->buf)[key_index].value;
             }
             else    {
-                self->status = status;
+                self->status = IDX_OOB; //fixme
                 return NULL;
             }
         break;
@@ -209,8 +210,29 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
     int         is_valid    = 0;
     int         is_equal    = 0;
     while(!is_equal || !is_valid)   {
-        is_equal = self->compare(key, kv_cast(self->map->buf)[index].key) == 0;
+        uint8_t null_check = 0;
+        
         is_valid = bitmap_contains(self->_filter, index) != 0;
+        if(is_valid) {
+            null_check  = kv_cast(self->map->buf)[index].key == NULL;
+            null_check  |= ((key == NULL) << 1);
+            switch(null_check) {
+                case 0: // neither is null
+                    is_equal = self->compare(key,
+                                   kv_cast(self->map->buf)[index].key) == 0;
+                break;
+
+                case 1:
+                case 2: // exclusive null cases, wrong index.
+                    is_equal = 0;
+                break;
+
+                case 3: // both are null
+                    is_equal = 1;
+                break;
+            }
+        }
+
         if(is_equal && is_valid)    {
             break;
         }
@@ -224,6 +246,7 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
     }
     return index;
 }
+
 // try to rewrite this to recursively re-hash in place via marking each
 // kv pair as whether they're in the correct location or not, and rehashing in
 // storage order until a conflict occurs - then recursively re-hash until no

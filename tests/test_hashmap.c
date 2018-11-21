@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <string.h>
 #include <criterion/criterion.h>
 
 char *names[] = {"one", "two", "three", "four", "five",
@@ -10,7 +11,7 @@ char *names[] = {"one", "two", "three", "four", "five",
 hashmap_t *ht_uut;
 
 void ht_init()  {
-    ht_uut  = create_hashmap(hashmap_hash_i64, hashmap_cmp_str, 2);
+    ht_uut  = create_hashmap(hashmap_hash_i64, strcmp, 2);
     cr_assert_not_null(ht_uut);
     for(uint64_t i = 0; i < 10; i++) {
         hashmap_set(ht_uut, names[i], (void*)(i + 1));
@@ -29,6 +30,10 @@ Test(hash_tests, test_setget)  {
         cr_assert_eq(result, i + 1, 
                     "map contains invalid entry for key %s: %d", names[i], result); 
     }
+
+    uint64_t result = (uint64_t)hashmap_fetch(ht_uut, (void*)0);
+    cr_assert_null(result, "fetch returned non-null for null key: %d", result);
+    cr_assert_eq(hashmap_okay(ht_uut), IDX_OOB, "incorrect status value");
 }
 
 Test(hash_tests, test_remove)   {
