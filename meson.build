@@ -94,10 +94,10 @@ if ext_criterion.found()
                             dependencies: ext_criterion)
 
     # test run targets
-    test('array_test', exe_array_test)
-    test('hash_test', exe_hashmap_test)
-    test('bitmap_test', exe_bitmap_test)
-    test('set_test', exe_set_test)
+    test('array_test', exe_array_test, args: '-j1')
+    test('hash_test', exe_hashmap_test, args: '-j1')
+    test('bitmap_test', exe_bitmap_test, args: '-j1')
+    test('set_test', exe_set_test, args: '-j1')
 endif
 
 # installation config

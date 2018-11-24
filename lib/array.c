@@ -133,19 +133,18 @@ void *array_fetch(array_t *self, int which)    {
 void *array_remove(array_t *self, int which)  {
     switch(check_valid(self))   {
         case SUCCESS:
-            if(which > self->size)  {
+            if(which >= self->size)  {
                 DBG_LOG("Requested remove index was out of bounds: %d\n",
                         which);
                 self->status = IDX_OOB;
                 return NULL;
             }
             else    {
-                array_swap(self, which, self->size -1);
-                self->size--;
+                array_swap(self, which, self->size);
                 // the item specified by 'which' is now at the end of the array,
                 // in the space after size
                 self->status = SUCCESS;
-                return self->data->buf[self->size -1];
+                return self->data->buf[self->size--];
             }
         break;
         default:

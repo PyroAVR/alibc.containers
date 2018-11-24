@@ -73,7 +73,7 @@ Test(array_tests, fetch)    {
 
 Test(array_tests, remove)   {
     char *result    = array_remove(at_uut, 2);
-    cr_assert(strcmp(result, "the lazy dog") == 0,
+    cr_assert(strcmp(result, "jumped over") == 0,
                 "equality check failed, got: %s", result); 
     int size = array_size(at_uut);
     cr_assert_eq(size, 3, "size check failed with size %d", size);
@@ -83,4 +83,28 @@ Test(array_tests, remove)   {
     
     result    = array_fetch(at_uut, -1);
     cr_assert_null(result, "remove of negative index returned non-null");
+}
+
+Test(index_tests, indices) {
+    array_t *uut    = create_array(1);
+    int result      = array_remove(uut, 0);
+    cr_assert_null(result, "empty removal");
+    result  = array_fetch(uut, 0);
+    cr_assert_null(result, "empty fetch");
+    result  = array_remove(uut, 1);
+    cr_assert_null(result, "empty remove beyond array limits");
+    result  = array_fetch(uut, 1);
+    cr_assert_null(result, "empty fetch beyond array limits");
+
+    array_append(uut, (void*)1);
+    result  = array_fetch(uut, 0);
+    cr_assert_eq(result, 1, "incorrect fetch");
+    result  = array_fetch(uut, 1);
+    cr_assert_null(result, "fetch beyond array limits");
+    result  = array_remove(uut, 1);
+    cr_assert_null(result, "remove beyond array limits");
+    result  = array_fetch(uut, 0);
+    cr_assert_eq(result, 1, "fetch beyond array limits");
+
+    array_free(uut);
 }
