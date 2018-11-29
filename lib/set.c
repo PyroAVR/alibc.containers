@@ -5,7 +5,7 @@
 #include <string.h>
 
 // private functions
-static int set_resize(set_t *self, int count);
+static int rehash(set_t *self, int count);
 static int check_valid(set_t *self);
 static int check_space_available(set_t *self, int size);
 static int set_locate(set_t *self, void *item);
@@ -44,7 +44,7 @@ finish:
     return r;
 }
 
-static int set_resize(set_t *self, int count) {
+static int rehash(set_t *self, int count) {
     int status = SET_INVALID;
     if(check_valid(self) != SET_SUCCESS) {
         goto finish;
@@ -116,7 +116,7 @@ int set_add(set_t *self, void *item) {
 
         case SET_NO_MEM:
             DBG_LOG("Set was resized for item %p\n", item);
-            if(set_resize(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
+            if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
                 status = set_add(self, item);
                 goto finish;
             }
@@ -140,7 +140,7 @@ int set_add(set_t *self, void *item) {
     while(bitmap_contains(self->_filter, index)) {
         index = (index + 1) % self->capacity;
         if(index == start_index) {
-            if(set_resize(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
+            if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
                 status = set_add(self, item);
                 goto finish;
             }
@@ -187,7 +187,32 @@ finish:
     return r;
 }
 
+int set_resize(set_t *self, int count) {
+    int status = SET_SUCCESS;
+    if(check_valid(self) != SET_SUCCESS) {
+        status = SET_INVALID;
+        goto finish;
+    }
 
+    if(count > self->entries) {
+        status = rehash(self, count);
+        if(status != SET_SUCCESS) {
+            DBG_LOG("Could not rehash to new size %d\n", count);
+            status = SET_NO_MEM;
+            goto finish;
+
+        }
+    }
+    else if(count < self->entries) {
+        DBG_LOG("Requested count %d was too small.\n", count);
+        status = SET_INVALID_REQ;
+        goto finish;
+    }
+
+finish:
+    self->status = status;
+    return status;
+}
 int set_contains(set_t *self, void *item) {
     int r = 0;
     if(check_valid(self) != SET_SUCCESS) {

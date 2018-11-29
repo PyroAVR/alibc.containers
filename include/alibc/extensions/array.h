@@ -13,8 +13,6 @@
  *  - Ordering.  The array is not ordered, insertion and removal will change
  *    the order of stored objects not inserted or removed unless the operation
  *    decays to fetch/append.
- * TODO: should this change? aka should a stable-partition algorithm be used
- * to do insertion/removal s/t order can be retained?
  */
 
 /*
@@ -29,6 +27,7 @@ typedef struct  {
 /*
  * array status indication - compliant with alibc/extensions standard errors
  */
+// FIXME
 typedef alibc_internal_errors array_status;
 
 /*
@@ -62,6 +61,16 @@ array_status array_append(array_t *self, void* item);
  * @return the item, or NULL if it does not exist.
  */
 void *array_fetch(array_t *self, int which);
+
+/*
+ * Allocate space for at least count items.
+ * If count is less than the current capacity and greater than or equal to the
+ * current size, then constrain the array (with copy) to the new, smaller size.
+ * @param self the array to use
+ * @param count the number of items which should be able to fit in the array.
+ * @return array_status_code
+ */
+int array_resize(array_t *self, int count);
 
 /*
  * Remove an item from the array

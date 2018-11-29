@@ -29,7 +29,7 @@ typedef int8_t (cmp_type)(void *, void*);
  */
 typedef struct  {
     dynabuf_t *map;
-    bitmap_t *_filter; // don't touch
+    bitmap_t *_filter;
     hash_type *hash;
     /*
      *load_type *load;
@@ -87,6 +87,16 @@ void *hashmap_fetch(hashmap_t *self, void *key);
  * @return the value, or NULL if the key is not known.
  */
 void *hashmap_remove(hashmap_t *self, void *key);
+
+/*
+ * Allocate sufficient space for count items to be stored in the hashmap.
+ * If the count is greater than the number of entries, but less than the number
+ * of items which are currently allocated, shrink (with copy) to a new buffer.
+ * @param self the hashmap to resize
+ * @param count the number of entries which should be allocated.
+ * @return hashmap_status_code
+ */
+int hashmap_resize(hashmap_t *self, int count);
 
 /*
  * Compute the size in entries of the hashmap

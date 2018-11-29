@@ -15,8 +15,6 @@
 // private functions
 static array_status check_valid(array_t*);
 static array_status check_space_available(array_t*, int);
-/*static array_status attempt_repair(array_t*);*/
-static array_status array_reallocate(array_t*);
 
 array_t *create_array(uint32_t size) {
     array_t *r       = malloc(sizeof(array_t));
@@ -61,7 +59,7 @@ array_status array_insert(array_t *self, int where, void *item)   {
 
         case NO_MEM:
             // try to allocate more space to store this item
-            if(array_reallocate(self) == SUCCESS)   {
+            if(array_resize(self, 2*self->size + 1) == SUCCESS)   {
                 DBG_LOG("realloc successful pre-insertion\n");
                 return array_insert(self, where, item);
             }
@@ -89,7 +87,7 @@ array_status array_append(array_t *self, void *item)  {
 
         case NO_MEM:
             DBG_LOG("realloc needed\n");
-            if((status = array_reallocate(self)) == SUCCESS)    {
+            if((status = array_resize(self, 2*self->size + 1)) == SUCCESS) {
                 return array_append(self, item);
             }
             else    {
@@ -127,6 +125,47 @@ void *array_fetch(array_t *self, int which)    {
             self->status = STATE_INVAL;
             return NULL;
     }
+}
+
+
+int array_resize(array_t *self, int count) {
+    int status = SUCCESS;
+    if(check_valid(self) != SUCCESS) {
+        status = NULL_ARG;
+        goto finish;
+    }
+    if(count > self->data->capacity) {
+        status = dynabuf_resize(self->data, sizeof(void*)*count);
+        if(status != SUCCESS) {
+            DBG_LOG("Could not resize array backing buffer.\n");
+            status = NO_MEM;
+            goto finish;
+        }
+    }
+    else if(count >= self->size) {
+        //resize and shrink size
+        dynabuf_t *new_buf = create_dynabuf(sizeof(void*)*count);
+        if(new_buf == NULL) {
+            DBG_LOG("Could not create new (smaller) dynabuf for array.\n");
+            status = NO_MEM;
+            goto finish;
+        }
+        memcpy(new_buf->buf, self->data->buf, sizeof(void*)*self->size);
+        dynabuf_free(self->data);
+        self->data = new_buf;
+        status = SUCCESS;
+        goto finish;
+
+    }
+    else {
+        DBG_LOG("Requested array count %d was too small\n", count);
+        status = IDX_OOB;
+        goto finish;
+    }
+
+finish:
+    self->status = status;
+    return status;
 }
 
 
@@ -226,40 +265,6 @@ static array_status check_valid(array_t *self)    {
     return SUCCESS;
 }
 
-/*
- * FIXME should this even be included here?
- * serious memory errors cannot be repaired automatically without system
- * intervention, and 'repairs' happening automatically could have adverse 
- * effect on debugging.
- */
-/*
- *static array_status attempt_repair(array_t *self)    {
- *    switch(check_valid(self))   {
- *        case SUCCESS: return SUCCESS;
- *        case STATE_INVAL:
- *        break;
- *        case NULL_ARG:
- *            DBG_LOG("self was null\n");
- *            return NULL_ARG;
- *        break;
- *        case NULL_BUF:
- *            self->data          = NULL; // insurance
- *            self->data          = create_dynabuf(REPAIR_SIZE);
- *            if(self->data == NULL)  {
- *                DBG_LOG("Could not create dynabuf with new size %d\n",
- *                        REPAIR_SIZE);
- *                return STATE_INVAL;
- *            }
- *            self->size          = 0;
- *            return SUCCESS;
- *        break;
- *
- *        default:
- *            return STATE_INVAL;
- *    }
- *    return STATE_INVAL;
- *}
- */
 // size in elements, not bytes
 static array_status check_space_available(array_t *self, int elements)  {
     switch(check_valid(self))   {
@@ -277,39 +282,6 @@ static array_status check_space_available(array_t *self, int elements)  {
     }
     return SUCCESS;
 } 
-
-array_status array_reallocate(array_t *self)  {
-    int status;
-    switch((status = check_valid(self)))   {
-        case SUCCESS:
-            switch((status = dynabuf_resize(self->data,
-                            sizeof(void*)*(2*self->size + 1)))) {
-                case SUCCESS:
-                break;
-
-                default:
-                    DBG_LOG("Could not realloc dynabuf\n");
-                break;
-            }
-            memset(self->data->buf + self->data->capacity, 0,
-                    (self->data->capacity * 2 + 1) * sizeof(void*));
-        break;
-        
-        default:
-            DBG_LOG("Array state was invalid on resize operation\n");
-            /*
-             *if((status = attempt_repair(self)) == SUCCESS) {
-             *    return array_reallocate(self);
-             *}
-             *else    {
-             *    DBG_LOG("Could not repair array selfementation: %d\n", status);
-             *    return status;
-             *}
-             */
-        break;
-    }
-    return status;
-}
 
 //todo: 
 //partition algs?

@@ -55,6 +55,22 @@ Test(set_tests, remove) {
             "allowed removal of non-existant item");
 }
 
+Test(set_tests, resize) {
+    int result;
+    char *more_items[] = {"one", "two", "three", "four", "five"};
+    for(int i = 0; i < 5; i++) {
+        set_add(set_uut, (void*)more_items[i]);
+    }
+    result = set_resize(set_uut, 3);
+    cr_assert_eq(result, set_okay(set_uut), "status not set");
+    cr_assert_eq(result, SET_INVALID_REQ, "Allowed resize of < count of elements.");
+
+    result = set_resize(set_uut, set_size(set_uut));
+    cr_assert_eq(result, SET_SUCCESS, "resize no-op failed.");
+
+    result = set_resize(set_uut, 50);
+    cr_assert_eq(result, SET_SUCCESS, "could not resize set to size 50.");
+}
 /*
  *Test(set_tests, iterate) {
  *    //how on earth do I test this?

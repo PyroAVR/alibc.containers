@@ -57,7 +57,8 @@ typedef enum {
     SET_FAILURE = INT_MIN,
     SET_NOTFOUND,
     SET_NO_MEM,
-    SET_INVALID
+    SET_INVALID,
+    SET_INVALID_REQ
 } set_error;
 
 /*
@@ -97,6 +98,16 @@ void *set_remove(set_t *self, void *item);
  * in any error case.
  */
 int set_contains(set_t *self, void *item);
+
+/*
+ * Resize the set to have count elements allocated.
+ * If count is less than the allocated size, but greater than the number of
+ * stored elemnets, shrink (with copy) the set to a new buffer.
+ * @param self the set to resize
+ * @param count the number of elements which this set should be able to hold.
+ * @return set_status;
+ */
+int set_resize(set_t *self, int count);
 
 /* Retrieve an array-like object from the set which can be iterated over.
  * @param self the set which should be iterated over

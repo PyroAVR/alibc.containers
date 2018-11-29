@@ -51,6 +51,22 @@ Test(hash_tests, test_remove)   {
     }
 }
 
+Test(hash_tests, resize) {
+    int result;
+    for(int i = 0; i < 5; i++) {
+        hashmap_set(ht_uut, (void*)i, (void*)i);
+    }
+    result = hashmap_resize(ht_uut, 5);
+    cr_assert_eq(result, hashmap_okay(ht_uut), "status not set");
+    cr_assert_eq(result, IDX_OOB, "Allowed resize of < count of elements.");
+
+    result = hashmap_resize(ht_uut, hashmap_size(ht_uut));
+    cr_assert_eq(result, SUCCESS, "resize no-op failed.");
+
+    result = hashmap_resize(ht_uut, 50);
+    cr_assert_eq(result, SUCCESS, "could not resize hashmap to size 50.");
+}
+
 Test(hash_tests, test_size) {
     int size = hashmap_size(ht_uut);
     cr_assert_eq(size, 10, "size check failed, got %d", size);

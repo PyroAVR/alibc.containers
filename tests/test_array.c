@@ -85,6 +85,22 @@ Test(array_tests, remove)   {
     cr_assert_null(result, "remove of negative index returned non-null");
 }
 
+Test(array_tests, resize) {
+    int result;
+    for(int i = 0; i < 5; i++) {
+        array_append(at_uut, i);
+    }
+    result = array_resize(at_uut, 5);
+    cr_assert_eq(result, array_okay(at_uut), "status not set");
+    cr_assert_eq(result, IDX_OOB, "Allowed resize of < count of elements.");
+
+    result = array_resize(at_uut, array_size(at_uut));
+    cr_assert_eq(result, SUCCESS, "resize no-op failed.");
+
+    result = array_resize(at_uut, 50);
+    cr_assert_eq(result, SUCCESS, "could not resize array to size 50.");
+}
+
 Test(index_tests, indices) {
     array_t *uut    = create_array(1);
     int result      = array_remove(uut, 0);
@@ -108,3 +124,4 @@ Test(index_tests, indices) {
 
     array_free(uut);
 }
+
