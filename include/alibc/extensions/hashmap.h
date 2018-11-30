@@ -3,6 +3,7 @@
 #include "dynabuf.h"
 #include "bitmap.h"
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * alibc/extensions hashmap interface
@@ -18,8 +19,9 @@
 typedef uint32_t (hash_type)(void *);
 typedef int8_t (cmp_type)(void *, void*);
 /*
- *typedef uint32_t (load_type)(hashmap_t *map);
+ * Load function type.
  */
+typedef bool (load_type)(int entries, int capacity);
 
 /*
  * hashmap type definition
@@ -27,13 +29,11 @@ typedef int8_t (cmp_type)(void *, void*);
  * validity of each entry without using NULL entries or pointers which could
  * cause confusion in the case of a NULL entry being intentional.
  */
-typedef struct  {
+typedef struct {
     dynabuf_t *map;
     bitmap_t *_filter;
     hash_type *hash;
-    /*
-     *load_type *load;
-     */
+    load_type *load;
     cmp_type    *compare;
     uint32_t    entries;
     uint32_t    capacity;
@@ -56,12 +56,14 @@ typedef alibc_internal_errors hashmap_status;
 
 /*
  * Constructor function for hashmap type
+ * @param size the starting size of the map
  * @param hashfn the hash function to use for this map
  * @param comparefn the comparator to use for this map
- * @param size the starting size of the map
+ * @param loadfn memory load estimator, used to reduce collisions.
  * @return new hashmap, or null or errors
  */
-hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size);
+hashmap_t *create_hashmap(int size, hash_type *hashfn,
+        cmp_type *comparefn, load_type loadfn);
 
 /*
  * Add a new key-value pair to the map

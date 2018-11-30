@@ -16,11 +16,13 @@ static hashmap_status rehash(hashmap_t *self, int count);
 static hashmap_status check_valid(hashmap_t *self);
 static hashmap_status check_space_available(hashmap_t *self, int size);
 static int hashmap_locate(hashmap_t *, void *);
+static inline bool default_load(int, int);
 
 
 
 
-hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
+hashmap_t *create_hashmap(int size, hash_type *hashfn,
+        cmp_type *comparefn, load_type loadfn) {
 
     hashmap_t *r    = malloc(sizeof(hashmap_t));
     if(r == NULL)  {
@@ -46,9 +48,14 @@ hashmap_t *create_hashmap(hash_type *hashfn, cmp_type *comparefn, int size) {
     memset(r->_filter->buf, 0,filter_size_constraint(size));
 
     r->hash     = hashfn;
-    /*
-     *r->load     = default_load;
-     */
+
+    if(loadfn == NULL) {
+        r->load     = default_load;
+    }
+    else {
+        r->load     = loadfn;
+    }
+
     r->compare  = comparefn;
     r->entries  = 0;
     r->capacity = size;
@@ -103,6 +110,10 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
         default:
             DBG_LOG("check_valid returned invalid status: %d\n", status);
         break;
+    }
+
+    if(self->load(self->entries, self->capacity) != 0) {
+        status = hashmap_resize(self, 2*self->capacity + 1);
     }
     self->status = status;
     return status;
@@ -350,11 +361,9 @@ hashmap_status check_valid(hashmap_t *self)    {
     if(self->hash == NULL)     {
         return NULL_HASH;
     }
-    /*
-     *if(self->load == NULL) {
-     *    return NULL_LOAD;
-     *}
-     */
+    if(self->load == NULL) {
+        return NULL_LOAD;
+    }
     return SUCCESS;
 }
 
@@ -372,17 +381,8 @@ hashmap_status check_space_available(hashmap_t *self, int size)  {
 
 
 /*
- *uint32_t default_load(hashmap_t *self)  {
- *    hashmap_status status;
- *    switch((status = check_valid(self)))   {
- *        case SUCCESS:
- *            return (uint32_t)((float)(self->entries)
- *                             / (float)(self->capacity));
- *        break;
- *        default:
- *            DBG_LOG("Invalid status returned from check_valid: %d\n", status);
- *            return 0;
- *        break;
- *    }
- *}
+ * 75% load by default. Chosen arbitrarily
  */
+inline bool default_load(int entries, int capacity)  {
+    return ((float)entries)/((float)capacity) > 0.75f;
+}

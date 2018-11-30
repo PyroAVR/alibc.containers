@@ -6,6 +6,7 @@ typedef enum {
     NULL_ARG,
     NULL_IMPL,
     NULL_BUF,
+    NULL_LOAD,
     ARG_INVAL,
     IDX_OOB,
     IDX_NEG,

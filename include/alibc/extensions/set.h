@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
+#include <stdbool.h>
 #include <limits.h>
+#include <stdbool.h>
 #include "dynabuf.h"
 #include "bitmap.h"
 /*
@@ -15,6 +17,7 @@
 // gross, FIXME! (alc-24)
 typedef uint32_t (hash_type)(void*);
 typedef int8_t (cmp_type)(void*, void*);
+typedef bool (load_type)(int entries, int capacity);
 
 // used to iterate over valid elements of the set
 // for this use case, it's just an int for where this iterator left off.
@@ -40,9 +43,7 @@ typedef struct {
     dynabuf_t   *buf;
     bitmap_t    *_filter;
     hash_type   *hash;
-    /*
-     *load_type *load;
-     */
+    load_type *load;
     cmp_type  *compare;
     uint32_t  entries;
     uint32_t  capacity;
@@ -64,9 +65,13 @@ typedef enum {
 /*
  * Constructor function for set type
  * @param size the initial size to allocate
+ * @param hashfn hash function to use for items added to the set
+ * @param comparefn comparator to check for object equality
+ * @param loadfn memory load estimator, for use to reduce collisions.
  * @return pointer to a new set on the heap, or NULL on errors.
  */
-set_t *create_set(int size, hash_type *hashfn, cmp_type *comparefn);
+set_t *create_set(int size, hash_type *hashfn,
+        cmp_type *comparefn, load_type loadfn);
 
 /*
  * Resize the set to contain at most count items

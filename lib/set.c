@@ -9,8 +9,10 @@ static int rehash(set_t *self, int count);
 static int check_valid(set_t *self);
 static int check_space_available(set_t *self, int size);
 static int set_locate(set_t *self, void *item);
+static inline bool default_load(int, int);
 
-set_t *create_set(int size, hash_type *hashfn, cmp_type *comparefn) {
+set_t *create_set(int size, hash_type *hashfn,
+        cmp_type *comparefn, load_type *loadfn) {
     set_t *r    = malloc(sizeof(set_t));
     if(r == NULL) {
         DBG_LOG("Could not malloc set container\n");
@@ -38,6 +40,14 @@ set_t *create_set(int size, hash_type *hashfn, cmp_type *comparefn) {
     r->entries  = 0;
     r->capacity = size;
     r->hash     = hashfn;
+
+    if(loadfn == NULL) {
+        r->load     = default_load;
+    }
+    else {
+        r->load     = loadfn;
+    }
+
     r->compare  = comparefn;
     r->status   = SET_SUCCESS;
 finish:
@@ -147,7 +157,6 @@ int set_add(set_t *self, void *item) {
             else {
                 DBG_LOG("could not resize set on add, but space was reported "
                         "available, structure corruption is likely.\n");
-                self->status = SET_NO_MEM;
                 status = SET_NO_MEM;
                 goto finish;
             }
@@ -158,9 +167,12 @@ int set_add(set_t *self, void *item) {
     bitmap_add(self->_filter, index);
     self->entries++;
 
-    self->status = SET_SUCCESS;
     status = SET_SUCCESS;
+    if(self->load(self->entries, self->capacity) == true) {
+        status = set_resize(self, 2*self->capacity + 1);
+    }
 finish:
+    self->status = status;
     return status;
 }
 
@@ -191,7 +203,7 @@ int set_resize(set_t *self, int count) {
     int status = SET_SUCCESS;
     if(check_valid(self) != SET_SUCCESS) {
         status = SET_INVALID;
-        goto finish;
+        goto finish_nostat;
     }
 
     if(count > self->entries) {
@@ -211,6 +223,7 @@ int set_resize(set_t *self, int count) {
 
 finish:
     self->status = status;
+finish_nostat:
     return status;
 }
 int set_contains(set_t *self, void *item) {
@@ -299,6 +312,11 @@ static int check_valid(set_t *self) {
         goto finish;
     }
 
+    if(self->load == NULL) {
+        r = SET_INVALID;
+        goto finish;
+    }
+
     r = SET_SUCCESS;
 finish:
     return r;
@@ -358,4 +376,11 @@ static int set_locate(set_t *self, void *item) {
         }
     }
     return index;
+}
+
+/*
+ * 75% load by default. Chosen arbitrarily
+ */
+inline bool default_load(int entries, int capacity)  {
+    return ((float)entries)/((float)capacity) > 0.75f;
 }

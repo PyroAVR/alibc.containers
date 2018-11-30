@@ -11,7 +11,7 @@ char *names[] = {"one", "two", "three", "four", "five",
 hashmap_t *ht_uut;
 
 void ht_init()  {
-    ht_uut  = create_hashmap(hashmap_hash_i64, strcmp, 2);
+    ht_uut  = create_hashmap(2, hashmap_hash_i64, strcmp, NULL);
     cr_assert_not_null(ht_uut);
     for(uint64_t i = 0; i < 10; i++) {
         hashmap_set(ht_uut, names[i], (void*)(i + 1));
