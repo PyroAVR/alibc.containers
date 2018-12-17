@@ -54,7 +54,7 @@ Test(hash_tests, test_remove)   {
 Test(hash_tests, resize) {
     int result;
     for(int i = 0; i < 5; i++) {
-        hashmap_set(ht_uut, (void*)i, (void*)i);
+        hashmap_set(ht_uut, (void*)names[i], (void*)i);
     }
     result = hashmap_resize(ht_uut, 5);
     cr_assert_eq(result, hashmap_okay(ht_uut), "status not set");

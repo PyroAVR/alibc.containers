@@ -77,6 +77,12 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
             // index guaranteed in range
             // scan for next open entry
             while(bitmap_contains(self->_filter, index))    {
+                if(kv_cast(self->map->buf)[index].key != NULL &&
+                        self->compare(key,
+                        kv_cast(self->map->buf)[index].key) == 0) {
+                    DBG_LOG("got repeat key case\n");
+                    goto repeat_key; // zoinks
+                }
                 index = (index + 1) % self->capacity;
                 if(index == start_index)    {
                     DBG_LOG("hashmap resize on key at:%p"
@@ -90,10 +96,11 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
                     return hashmap_set(self, key, value);
                 }
             }
+            self->entries++;
             kv_pair a = { .key = key, .value = value};
+repeat_key:
             kv_cast(self->map->buf)[index]  = a;
             bitmap_add(self->_filter, index);
-            self->entries++;
         break;
 
         case NO_MEM:
