@@ -53,6 +53,11 @@ Test(set_tests, remove) {
 
     cr_assert_eq(set_remove(set_uut, "whoops please edit"), NULL,
             "allowed removal of non-existant item");
+    
+    set_add(set_uut, "blep");
+    set_add(set_uut, "blep");
+    set_remove(set_uut, "blep");
+    cr_assert(!set_contains(set_uut, "blep"), "duplicate entry allowed.");
 }
 
 Test(set_tests, resize) {

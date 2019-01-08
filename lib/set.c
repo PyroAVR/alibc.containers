@@ -148,6 +148,12 @@ int set_add(set_t *self, void *item) {
 
     // loop until we find an open spot to insert into
     while(bitmap_contains(self->_filter, index)) {
+        if(self->buf->buf[index] != NULL &&
+                self->compare(item, self->buf->buf[index]) == 0) {
+
+            DBG_LOG("got repeat item case\n");
+            goto repeat_item;
+        }
         index = (index + 1) % self->capacity;
         if(index == start_index) {
             if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
@@ -163,9 +169,10 @@ int set_add(set_t *self, void *item) {
         }
     }
     
-    self->buf->buf[index] = item;
-    bitmap_add(self->_filter, index);
     self->entries++;
+    bitmap_add(self->_filter, index);
+repeat_item:
+    self->buf->buf[index] = item;
 
     status = SET_SUCCESS;
     if(self->load(self->entries, self->capacity) == true) {
