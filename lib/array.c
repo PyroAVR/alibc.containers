@@ -224,6 +224,10 @@ int array_size(array_t *self) {
             return self->size;
         break;
 
+        case NULL_ARG:
+            return -1;
+        break;
+
         default:
             self->status = STATE_INVAL;
             return -1;
