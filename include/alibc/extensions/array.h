@@ -55,6 +55,16 @@ array_status array_insert(array_t *self, int where, void* item);
 array_status array_append(array_t *self, void* item);
 
 /*
+ * Insert a new value into the array without swapping, thus overwriting
+ * any previously stored value at that index.
+ * @param self the array to insert into
+ * @param where the index to which item shall be written
+ * @param item the value to store at the specified index.
+ * @return insert status
+ */
+array_status array_insert_unsafe(array_t *self, int where, void *item);
+
+/*
  * Retrieve an item from the array
  * @param self the array from which to retrieve the item
  * @param which the index to fetch

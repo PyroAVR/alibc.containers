@@ -78,6 +78,33 @@ array_status array_insert(array_t *self, int where, void *item)   {
 }
 
 
+array_status array_insert_unsafe(array_t *self, int where, void *item) {
+    array_status status;
+    if((status = check_valid(self)) != SUCCESS) {
+        DBG_LOG("Array was not valid on unsafe insert.\n");
+        goto done;
+    }
+
+    if(where > self->size)  {
+        DBG_LOG("Attempted insert beyond end of array.\n");
+        status = IDX_OOB;
+        goto done;
+    }
+    // decay to append operation if no swap is needed
+    if(where != self->size) {
+        // swapping allows for constant-time insertion, but 
+        // changes the order of unrelated objects.
+        array_swap(self, where, self->size);
+    }
+    self->data->buf[where]   = item;
+    status = SUCCESS;
+    
+done:
+    self->status = status;
+    return status;
+}
+
+
 array_status array_append(array_t *self, void *item)  {
     int status;
     switch(check_space_available(self, 1))   {

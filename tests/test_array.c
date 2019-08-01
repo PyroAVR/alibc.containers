@@ -46,6 +46,24 @@ Test(array_tests, insert)   {
             "equality check failed, got: %s", result);
 }
 
+Test(array_tests, insert_unsafe) {
+    for(int i = 0; i < 4; i++)  {
+        array_insert(at_uut, i, data[3-i]);
+    }
+    array_insert_unsafe(at_uut, 2, "lorem ipsum");
+    int size = array_size(at_uut);
+    cr_assert_eq(size, 8, "size check failed with size %d", size);
+    char *result    = array_fetch(at_uut, 2);
+    cr_assert(strcmp(result, "lorem ipsum") == 0,
+                "equality check failed, got: %s", result); 
+
+    array_insert_unsafe(at_uut, array_size(at_uut)-1, "unsafe insert");
+    result  = array_fetch(at_uut, array_size(at_uut)-1);
+    // test swap() by proxy
+    cr_assert(strcmp(result, "unsafe insert") == 0,
+            "equality check failed, got: %s", result);
+}
+
 Test(array_tests, append)   {
     for(int i = 0; i < 4; i++)  {
         array_append(at_uut, data[i]);
