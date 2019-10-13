@@ -19,7 +19,7 @@ static void *set_iter_next(iter_context *ctx) {
             break;
         }
     }
-    if(ctx->index == target->capacity - 1) {
+    if(ctx->index == target->capacity) {
         ctx->status = ITER_STOP;
     }
     else {

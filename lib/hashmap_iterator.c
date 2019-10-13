@@ -18,7 +18,7 @@ static void *hashmap_iter_keys(iter_context *ctx) {
             break;
         }
     }
-    if(ctx->index == target->capacity - 1) {
+    if(ctx->index == target->capacity) {
         ctx->status = ITER_STOP;
     }
     else {
@@ -44,7 +44,7 @@ static void *hashmap_iter_values(iter_context *ctx) {
             break;
         }
     }
-    if(ctx->index == target->capacity - 1) {
+    if(ctx->index == target->capacity) {
         ctx->status = ITER_STOP;
     }
     else {
