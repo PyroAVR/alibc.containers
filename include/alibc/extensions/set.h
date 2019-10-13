@@ -19,24 +19,6 @@ typedef uint32_t (hash_type)(void*);
 typedef int8_t (cmp_type)(void*, void*);
 typedef bool (load_type)(int entries, int capacity);
 
-// used to iterate over valid elements of the set
-// for this use case, it's just an int for where this iterator left off.
-// FIXME hashmap should also have this. (alc-24)
-/*
- *typedef struct {
- *    int      index;
- *    uint32_t status;
- *    //this should have status codes of its own...
- *} iter_context;
- *
- * // TODO Move this to iterable? interface
- *typedef enum {
- *    ITER_READY,
- *    ITER_CONTINUE,
- *    ITER_INVALID,
- *    ITER_STOP
- *} iter_status;
- */
 
 // load function?
 typedef struct {
@@ -144,10 +126,3 @@ int set_okay(set_t *self);
  * @param self the set to destroy
  */
 void set_free(set_t *self);
-
-/*
- *static const iter_context ITER_BASE = {
- *    .index = 0,
- *    .status = ITER_READY
- *};
- */
