@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <alibc/extensions/array.h>
+#include <alibc/extensions/iterator.h>
+#include <alibc/extensions/array_iterator.h>
 #include <criterion/criterion.h>
 // ideas: 
 // implementation enforcement with macros via IMPLEMENTS(proto)
@@ -143,3 +145,21 @@ Test(index_tests, indices) {
     array_free(uut);
 }
 
+Test(array_tests, iterator) {
+    iter_context *iter = create_array_iterator(at_uut);
+    cr_assert_not_null(iter, "iterator was null");
+    cr_assert_eq(iter->status, ITER_READY);
+    // iterate one too far - check stop
+    for(int i = 0; i < 5; i++) {
+        char *next = iter_next(iter);
+        if(i < 5) {
+            cr_assert_eq(iter->status, ITER_CONTINUE);
+        }
+        else if(i == 5) {
+            cr_assert_eq(iter->status, ITER_STOP);
+            // oob case
+            cr_assert_null(next, "returned a non-null result out of bounds");
+        }
+    }
+    iter_free(iter);
+}

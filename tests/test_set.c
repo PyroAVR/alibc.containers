@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <alibc/extensions/set.h>
 #include <alibc/extensions/hashmap.h>
+#include <alibc/extensions/iterator.h>
+#include <alibc/extensions/set_iterator.h>
 #include <criterion/criterion.h>
 #include <string.h>
 
@@ -77,31 +79,29 @@ Test(set_tests, resize) {
     cr_assert_eq(result, SET_SUCCESS, "could not resize set to size 50.");
 }
 /*
- *Test(set_tests, iterate) {
- *    //how on earth do I test this?
- *    for(int i = 0; i < 6; i++)  {
- *        set_add(set_uut, items[i]);
- *    }
- *    iter_context context;
- *    // iterate one too far - check stop
- *    for(int i = 0; i < 7; i++) {
- *        char *next = set_iterate(set_uut, &context);
- *        if(i == 0) {
- *            cr_assert_eq(context.index, 1, "context index was not updated");
- *        }
- *        else if(i < 6) {
- *            cr_assert_eq(context.status, ITER_CONTINUE);
- *        }
- *        else if(i == 6) {
- *            cr_assert_eq(context.status, ITER_STOP);
- *        }
- *        else if(i == 7) {
- *            // oob case
- *            cr_assert_null(next, "returned a non-null result out of bounds");
- *        }
- *        else {
- *            cr_assert(set_contains(set_uut, next));
- *        }
- *    }
- *}
+ * TODO: separate this into iterator tests, to allow testing without a full
+ * build.
  */
+
+Test(set_tests, iterator) {
+    for(int i = 0; i < 6; i++)  {
+        set_add(set_uut, items[i]);
+    }
+    iter_context *iter = create_set_iterator(set_uut);
+    cr_assert_not_null(iter, "iterator was null");
+    cr_assert_eq(iter->status, ITER_READY);
+    // iterate one too far - check stop
+    for(int i = 0; i < 7; i++) {
+        char *next = iter_next(iter);
+        if(i < 7) {
+            cr_assert_eq(iter->status, ITER_CONTINUE);
+            cr_assert(set_contains(set_uut, next));
+        }
+        else if(i == 7) {
+            cr_assert_eq(iter->status, ITER_STOP);
+            // oob case
+            cr_assert_null(next, "returned a non-null result out of bounds");
+        }
+    }
+    iter_free(iter);
+}

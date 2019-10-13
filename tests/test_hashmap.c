@@ -1,4 +1,6 @@
 #include <alibc/extensions/hashmap.h>
+#include <alibc/extensions/iterator.h>
+#include <alibc/extensions/hashmap_iterator.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -70,4 +72,42 @@ Test(hash_tests, resize) {
 Test(hash_tests, test_size) {
     int size = hashmap_size(ht_uut);
     cr_assert_eq(size, 10, "size check failed, got %d", size);
+}
+
+Test(hash_tests, iterator_keys) {
+    iter_context *iter = create_hashmap_keys_iterator(ht_uut);
+    cr_assert_not_null(iter, "iterator was null");
+    cr_assert_eq(iter->status, ITER_READY);
+    // iterate one too far - check stop
+    for(int i = 0; i < 11; i++) {
+        char *next = iter_next(iter);
+        if(i < 11) {
+            cr_assert_eq(iter->status, ITER_CONTINUE);
+        }
+        else if(i == 11) {
+            cr_assert_eq(iter->status, ITER_STOP);
+            // oob case
+            cr_assert_null(next, "returned a non-null result out of bounds");
+        }
+    }
+    iter_free(iter);
+}
+
+Test(hash_tests, iterator_values) {
+    iter_context *iter = create_hashmap_values_iterator(ht_uut);
+    cr_assert_not_null(iter, "iterator was null");
+    cr_assert_eq(iter->status, ITER_READY);
+    // iterate one too far - check stop
+    for(int i = 0; i < 11; i++) {
+        char *next = iter_next(iter);
+        if(i < 11) {
+            cr_assert_eq(iter->status, ITER_CONTINUE);
+        }
+        else if(i == 11) {
+            cr_assert_eq(iter->status, ITER_STOP);
+            // oob case
+            cr_assert_null(next, "returned a non-null result out of bounds");
+        }
+    }
+    iter_free(iter);
 }
