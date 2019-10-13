@@ -15,6 +15,7 @@ static void *hashmap_iter_keys(iter_context *ctx) {
     for(; ctx->index < target->capacity; ctx->index++) {
         if(bitmap_contains(target->_filter, ctx->index)) {
             r = ((kv_pair*)target->map->buf)[ctx->index].key;
+            ctx->index++;
             break;
         }
     }
@@ -41,6 +42,7 @@ static void *hashmap_iter_values(iter_context *ctx) {
     for(; ctx->index < target->capacity; ctx->index++) {
         if(bitmap_contains(target->_filter, ctx->index)) {
             r = ((kv_pair*)target->map->buf)[ctx->index].value;
+            ctx->index++;
             break;
         }
     }

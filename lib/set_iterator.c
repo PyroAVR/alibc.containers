@@ -16,6 +16,7 @@ static void *set_iter_next(iter_context *ctx) {
     for(; ctx->index < target->capacity; ctx->index++) {
         if(bitmap_contains(target->_filter, ctx->index)) {
             r = target->buf->buf[ctx->index];
+            ctx->index++;
             break;
         }
     }
