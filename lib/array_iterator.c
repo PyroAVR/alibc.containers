@@ -12,11 +12,18 @@ static void *array_iter_next(iter_context *ctx) {
         ctx->status = ITER_INVALID;
         goto done;
     }
-    for(; ctx->index < array_size(target); ctx->index++) {
+    /*
+     *for(; ctx->index < array_size(target); ctx->index++) {
+     */
+    if(ctx->index < array_size(target)) {
         r = array_fetch(target, ctx->index);
-        break;
+        ctx->index++;
     }
-    if(ctx->index == array_size(target) - 1) {
+    /*
+     *    break;
+     *}
+     */
+    if(ctx->index == array_size(target) || array_size(target) == 0) {
         ctx->status = ITER_STOP;
     }
     else {
