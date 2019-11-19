@@ -16,13 +16,13 @@
 static array_status check_valid(array_t*);
 static array_status check_space_available(array_t*, int);
 
-array_t *create_array(uint32_t size) {
+array_t *create_array(uint32_t size, uint32_t unit) {
     array_t *r       = malloc(sizeof(array_t));
     if(r == NULL)   {
         DBG_LOG("Could not malloc array_t\n");
         return NULL;
     }
-    r->data          = create_dynabuf(size*sizeof(void*));
+    r->data          = create_dynabuf(size, unit);
     if(r->data == NULL)  {
         DBG_LOG("Could not create dynabuf with size %d\n", size);
         free(r);
@@ -31,7 +31,7 @@ array_t *create_array(uint32_t size) {
 
     // zeroing-out the array allows swaps to swap-in NULL values, which is 
     // cleaner for the end-user.
-    memset(r->data->buf, 0, size);
+    memset(r->data->buf, 0, size*unit);
     r->size     = 0;
     r->status   = SUCCESS;
 
@@ -52,7 +52,7 @@ array_status array_insert(array_t *self, int where, void *item)   {
                 // changes the order of unrelated objects.
                 array_swap(self, where, self->size);
             }
-            self->data->buf[where]   = item;
+            dynabuf_set(self->data, where, item);
             self->size++;
             self->status = SUCCESS;
         break;
@@ -96,7 +96,7 @@ array_status array_insert_unsafe(array_t *self, int where, void *item) {
         // changes the order of unrelated objects.
         array_swap(self, where, self->size);
     }
-    self->data->buf[where]   = item;
+    dynabuf_set(self->data, where, item);
     status = SUCCESS;
     
 done:
@@ -109,7 +109,7 @@ array_status array_append(array_t *self, void *item)  {
     int status;
     switch(check_space_available(self, 1))   {
         case SUCCESS:
-            self->data->buf[self->size++] = item;
+            dynabuf_set(self->data, self->size++, item);
         break;
 
         case NO_MEM:
@@ -143,7 +143,7 @@ void *array_fetch(array_t *self, int which)    {
             }
             else  {
                 self->status = SUCCESS;
-                return self->data->buf[which];
+                return dynabuf_fetch(self->data, which);
             }
         break;
 
@@ -161,29 +161,31 @@ int array_resize(array_t *self, int count) {
         status = NULL_ARG;
         goto finish;
     }
-    if(count > self->data->capacity) {
-        status = dynabuf_resize(self->data, sizeof(void*)*count);
+    if(count*self->data->elem_size > self->data->capacity) {
+        status = dynabuf_resize(self->data, count);
         if(status != SUCCESS) {
             DBG_LOG("Could not resize array backing buffer.\n");
             status = NO_MEM;
             goto finish;
         }
     }
-    else if(count >= self->size) {
-        //resize and shrink size
-        dynabuf_t *new_buf = create_dynabuf(sizeof(void*)*count);
-        if(new_buf == NULL) {
-            DBG_LOG("Could not create new (smaller) dynabuf for array.\n");
-            status = NO_MEM;
-            goto finish;
-        }
-        memcpy(new_buf->buf, self->data->buf, sizeof(void*)*self->size);
-        dynabuf_free(self->data);
-        self->data = new_buf;
-        status = SUCCESS;
-        goto finish;
-
-    }
+/*
+ *    else if(count >= self->size) {
+ *        //resize and shrink size
+ *        dynabuf_t *new_buf = create_dynabuf(count, self->data->elem_size);
+ *        if(new_buf == NULL) {
+ *            DBG_LOG("Could not create new (smaller) dynabuf for array.\n");
+ *            status = NO_MEM;
+ *            goto finish;
+ *        }
+ *        memcpy(new_buf->buf, self->data->buf, new_buf->elem_size*self->size);
+ *        dynabuf_free(self->data);
+ *        self->data = new_buf;
+ *        status = SUCCESS;
+ *        goto finish;
+ *
+ *    }
+ */
     else {
         DBG_LOG("Requested array count %d was too small\n", count);
         status = IDX_OOB;
@@ -199,6 +201,10 @@ finish:
 void *array_remove(array_t *self, int which)  {
     switch(check_valid(self))   {
         case SUCCESS:
+            if(self->size == 0) {
+                self->status = IDX_OOB;
+                return NULL;
+            }
             if(which >= self->size)  {
                 DBG_LOG("Requested remove index was out of bounds: %d\n",
                         which);
@@ -210,7 +216,7 @@ void *array_remove(array_t *self, int which)  {
                 // the item specified by 'which' is now at the end of the array,
                 // in the space after size
                 self->status = SUCCESS;
-                return self->data->buf[self->size--];
+                return dynabuf_fetch(self->data, self->size--);
             }
         break;
         default:
@@ -222,26 +228,37 @@ void *array_remove(array_t *self, int which)  {
     }
 }
 
-array_status array_swap(array_t *self, int first, int second)    {
+array_status array_swap(array_t *self, int first, int second) {
     int status;
-    switch((status = check_valid(self)))   {
-        case SUCCESS:
-            // triple-xor swap
-            self->data->buf[first]   = 
-                (void*)((uint64_t)self->data->buf[first]
-                ^ (uint64_t)self->data->buf[second]);
-            self->data->buf[second]  =
-                (void*)((uint64_t)self->data->buf[first]
-                ^ (uint64_t)self->data->buf[second]);
-            self->data->buf[first]   =
-                (void*)((uint64_t)self->data->buf[first]
-                ^ (uint64_t)self->data->buf[second]);
-            // fall through here
-        default:
-            return status;
-        break;
+    if((status = check_valid(self)) != SUCCESS) {
+        goto done;
     }
-
+    if(first > self->size || second > self->size) {
+        status = IDX_OOB;
+        goto done;
+    }
+    // due to larger-than-register sizes, we cannot simply swap values,
+    // a true memory-to-memory copy may be needed (rats)
+    if(self->data->elem_size <= sizeof(void*)) {
+        void *tmp = dynabuf_fetch(self->data, first);
+        dynabuf_set(self->data, first, dynabuf_fetch(self->data, second));
+        dynabuf_set(self->data, second, tmp);
+    }
+    else {
+        char *cpy_buf = malloc(self->data->elem_size);
+        if(cpy_buf == NULL) {
+            status = NO_MEM;
+            goto done;
+        }
+        memcpy(
+            cpy_buf, dynabuf_fetch(self->data, first), self->data->elem_size
+        );
+        dynabuf_set(self->data, first, dynabuf_fetch(self->data, second));
+        dynabuf_set(self->data, second, cpy_buf);
+        free(cpy_buf);
+    }
+done:
+    return status;
 }
 
 int array_size(array_t *self) {
@@ -300,7 +317,8 @@ static array_status check_valid(array_t *self)    {
 static array_status check_space_available(array_t *self, int elements)  {
     switch(check_valid(self))   {
         case SUCCESS:
-            if(self->size + elements <= self->data->capacity/sizeof(void*)) {
+            if(self->size + elements <=
+               self->data->capacity/self->data->elem_size) {
                 return SUCCESS;
             }
             else    {

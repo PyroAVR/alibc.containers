@@ -33,9 +33,10 @@ typedef alibc_internal_errors array_status;
 /*
  * Constructor function for array type
  * @param size the size to reserve.
+ * @param unit the size of each array element
  * @return new array, or null on errors.
  */
-array_t *create_array(uint32_t size);
+array_t *create_array(uint32_t size, uint32_t unit);
 
 /*
  * Insert a new value into the array
@@ -74,8 +75,8 @@ void *array_fetch(array_t *self, int which);
 
 /*
  * Allocate space for at least count items.
- * If count is less than the current capacity and greater than or equal to the
- * current size, then constrain the array (with copy) to the new, smaller size.
+ * Specification of a size smaller than the number of elements present is
+ * considered an error.
  * @param self the array to use
  * @param count the number of items which should be able to fit in the array.
  * @return array_status_code

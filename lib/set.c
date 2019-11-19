@@ -11,7 +11,7 @@ static int check_space_available(set_t *self, int size);
 static int set_locate(set_t *self, void *item);
 static inline bool default_load(int, int);
 
-set_t *create_set(int size, hash_type *hashfn,
+set_t *create_set(int size, int unit, hash_type *hashfn,
         cmp_type *comparefn, load_type *loadfn) {
     set_t *r    = malloc(sizeof(set_t));
     if(r == NULL) {
@@ -20,7 +20,7 @@ set_t *create_set(int size, hash_type *hashfn,
         goto finish;
     }
     
-    r->buf      = create_dynabuf(size*sizeof(void*));
+    r->buf      = create_dynabuf(size, unit);
     if(r->buf == NULL) {
         DBG_LOG("Could not malloc backing buffer for set\n");
         free(r);
@@ -63,7 +63,7 @@ static int rehash(set_t *self, int count) {
     dynabuf_t   *scratch_buf;
     dynabuf_t   *scratch_filter;
 
-    scratch_buf     = create_dynabuf(sizeof(void*)*count);
+    scratch_buf     = create_dynabuf(count, self->buf->elem_size);
     if(scratch_buf == NULL) {
         DBG_LOG("Could not create new backing array with size %d\n",
                 self->capacity);
@@ -87,7 +87,7 @@ static int rehash(set_t *self, int count) {
             continue;
         }
         
-        uint32_t hash   = self->hash(self->buf->buf[i]);
+        uint32_t hash   = self->hash(dynabuf_fetch(self->buf,i));
         uint32_t index  = hash % count;
         uint32_t start_index = index;
         while(bitmap_contains(scratch_filter, index)) {
@@ -102,7 +102,10 @@ static int rehash(set_t *self, int count) {
                 goto finish;
             }
         }
-        scratch_buf->buf[index] = self->buf->buf[i];
+        dynabuf_set(scratch_buf, index, dynabuf_fetch(self->buf, i));
+        /*
+         *scratch_buf->buf[index] = self->buf->buf[i];
+         */
         bitmap_add(scratch_filter, index);
     }
 
@@ -148,8 +151,8 @@ int set_add(set_t *self, void *item) {
 
     // loop until we find an open spot to insert into
     while(bitmap_contains(self->_filter, index)) {
-        if(self->buf->buf[index] != NULL &&
-                self->compare(item, self->buf->buf[index]) == 0) {
+        if(dynabuf_fetch(self->buf, index) != NULL &&
+                self->compare(item, dynabuf_fetch(self->buf, index)) == 0) {
 
             DBG_LOG("got repeat item case\n");
             goto repeat_item;
@@ -172,7 +175,10 @@ int set_add(set_t *self, void *item) {
     self->entries++;
     bitmap_add(self->_filter, index);
 repeat_item:
-    self->buf->buf[index] = item;
+    dynabuf_set(self->buf, index, item);
+    /*
+     *self->buf->buf[index] = item;
+     */
 
     status = SET_SUCCESS;
     if(self->load(self->entries, self->capacity) == true) {
@@ -196,7 +202,7 @@ void *set_remove(set_t *self, void *item) {
         bitmap_remove(self->_filter, index);
         self->entries--;
         self->status = SET_SUCCESS;
-        r = self->buf->buf[index];
+        r = dynabuf_fetch(self->buf, index);
     }
     else {
         self->status = SET_NOTFOUND;
@@ -354,11 +360,14 @@ static int set_locate(set_t *self, void *item) {
 
         is_valid = bitmap_contains(self->_filter, index) != 0;
         if(is_valid) {
-            null_check  = self->buf->buf[index] == NULL;
+            null_check  = dynabuf_fetch(self->buf, index) == NULL;
             null_check  |= ((item == NULL) << 1);
             switch(null_check) {
                 case 0:
-                    is_equal = self->compare(item, self->buf->buf[index]) == 0;
+                    is_equal = self->compare(
+                            item,
+                            dynabuf_fetch(self->buf, index)
+                    ) == 0;
                 break;
 
                 case 1:

@@ -19,7 +19,7 @@ char *items[] = {"do not go gentle into that good night,",
 };
 
 void set_init(void) {
-    set_uut = create_set(4, hashmap_hash_str, strcmp, NULL);
+    set_uut = create_set(4, sizeof(char*), hashmap_hash_str, strcmp, NULL);
 }
 
 void set_finish(void) {

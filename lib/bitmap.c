@@ -7,7 +7,7 @@ bitmap_t *create_bitmap(int max) {
     /*
      *int size_in_bytes = (max > 8) ? ((max + 7) >> 3):1;
      */
-    return create_dynabuf(size_in_bytes);
+    return create_dynabuf(size_in_bytes, sizeof(char));
 }
 
 bitmap_t *bitmap_resize(bitmap_t *self, int max) {

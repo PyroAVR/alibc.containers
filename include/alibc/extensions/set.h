@@ -47,12 +47,13 @@ typedef enum {
 /*
  * Constructor function for set type
  * @param size the initial size to allocate
+ * @param unit the size of each set element.
  * @param hashfn hash function to use for items added to the set
  * @param comparefn comparator to check for object equality
  * @param loadfn memory load estimator, for use to reduce collisions.
  * @return pointer to a new set on the heap, or NULL on errors.
  */
-set_t *create_set(int size, hash_type *hashfn,
+set_t *create_set(int size, int unit, hash_type *hashfn,
         cmp_type *comparefn, load_type loadfn);
 
 /*
