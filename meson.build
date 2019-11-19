@@ -86,14 +86,14 @@ sl_array_iter = library(
 sl_hashmap_iter = library(
     'alc_hashmap_iter', 'lib/hashmap_iterator.c',
     include_directories: includes,
-    link_with: [sl_iterator, sl_hashmap, sl_bitmap],
+    link_with: [sl_iterator, sl_hashmap, sl_bitmap, sl_dynabuf],
     install: true
 )
 
 sl_set_iter = library(
     'alc_set_iter', 'lib/set_iterator.c',
     include_directories: includes,
-    link_with: [sl_iterator, sl_set, sl_bitmap],
+    link_with: [sl_iterator, sl_set, sl_bitmap, sl_dynabuf],
     install: true
 )
 
@@ -140,16 +140,16 @@ dep_array_iter = declare_dependency(
 
 dep_hashmap_iter = declare_dependency(
     include_directories: includes,
-    link_with: [sl_iterator, sl_hashmap, sl_bitmap, sl_hashmap_iter]
+    link_with: [sl_iterator, sl_hashmap, sl_bitmap, sl_hashmap_iter, sl_dynabuf]
 )
 
 dep_set_iter = declare_dependency(
     include_directories: includes,
-    link_with: [sl_iterator, sl_set, sl_bitmap, sl_set_iter]
+    link_with: [sl_iterator, sl_set, sl_bitmap, sl_set_iter, sl_dynabuf]
 )
 
 # unit test targets
-ext_criterion       = dependency('criterion')
+ext_criterion       = dependency('criterion', required: false)
 if ext_criterion.found()
     exe_array_test = executable(
         'arraytest', 'tests/test_array.c',

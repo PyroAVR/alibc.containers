@@ -12,17 +12,16 @@ static void *hashmap_iter_keys(iter_context *ctx) {
         ctx->status = ITER_INVALID;
         goto done;
     }
-    for(; ctx->index < target->capacity; ctx->index++) {
-        if(bitmap_contains(target->_filter, ctx->index)) {
-            r = ((kv_pair*)target->map->buf)[ctx->index].key;
-            break;
-        }
+    while(ctx->index < target->capacity
+        && !bitmap_contains(target->_filter, ctx->index)) {
+        ctx->index++;
     }
     if(ctx->index == target->capacity) {
         ctx->status = ITER_STOP;
     }
     else {
         ctx->status = ITER_CONTINUE;
+        r = ((kv_pair*)dynabuf_fetch(target->map, ctx->index))->key;
     }
 done:
     return r;
@@ -38,17 +37,16 @@ static void *hashmap_iter_values(iter_context *ctx) {
         ctx->status = ITER_INVALID;
         goto done;
     }
-    for(; ctx->index < target->capacity; ctx->index++) {
-        if(bitmap_contains(target->_filter, ctx->index)) {
-            r = ((kv_pair*)target->map->buf)[ctx->index].value;
-            break;
-        }
+    while(ctx->index < target->capacity
+        && !bitmap_contains(target->_filter, ctx->index)) {
+        ctx->index++;
     }
     if(ctx->index == target->capacity) {
         ctx->status = ITER_STOP;
     }
     else {
         ctx->status = ITER_CONTINUE;
+        r = ((kv_pair*)dynabuf_fetch(target->map, ctx->index))->value;
     }
 done:
     return r;

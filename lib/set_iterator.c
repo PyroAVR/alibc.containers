@@ -1,5 +1,6 @@
 #include <alibc/extensions/set.h>
 #include <alibc/extensions/iterator.h>
+#include <alibc/extensions/dynabuf.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -13,17 +14,16 @@ static void *set_iter_next(iter_context *ctx) {
         ctx->status = ITER_INVALID;
         goto done;
     }
-    for(; ctx->index < target->capacity; ctx->index++) {
-        if(bitmap_contains(target->_filter, ctx->index)) {
-            r = target->buf->buf[ctx->index];
-            break;
-        }
+    while(ctx->index < target->capacity
+       && !bitmap_contains(target->_filter, ctx->index)) {
+        ctx->index++;
     }
     if(ctx->index == target->capacity) {
         ctx->status = ITER_STOP;
     }
     else {
         ctx->status = ITER_CONTINUE;
+        r = dynabuf_fetch(target->buf, ctx->index);
     }
 done:
     return r;
