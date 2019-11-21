@@ -2,6 +2,9 @@
 #include <alibc/extensions/iterator.h>
 #include <stdlib.h>
 #include <stdio.h>
+#define value_at(self, idx) ((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
+#define key_at(self, idx) ((char*)dynabuf_fetch(self->map, idx))
+
 static void *hashmap_iter_keys(iter_context *ctx) {
     void *r = NULL;
     if(ctx == NULL) {
@@ -21,7 +24,7 @@ static void *hashmap_iter_keys(iter_context *ctx) {
     }
     else {
         ctx->status = ITER_CONTINUE;
-        r = ((kv_pair*)dynabuf_fetch(target->map, ctx->index))->key;
+        r = key_at(target, ctx->index);
     }
 done:
     return r;
@@ -46,7 +49,7 @@ static void *hashmap_iter_values(iter_context *ctx) {
     }
     else {
         ctx->status = ITER_CONTINUE;
-        r = ((kv_pair*)dynabuf_fetch(target->map, ctx->index))->value;
+        r = value_at(target, ctx->index);
     }
 done:
     return r;

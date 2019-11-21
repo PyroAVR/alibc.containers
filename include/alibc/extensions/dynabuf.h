@@ -39,6 +39,26 @@ int dynabuf_set(dynabuf_t *target, int which, void *element);
 
 
 /**
+ * Repeatedly write into the same key, allowing multiple values to be written in
+ * sequence.
+ * Example use case: storing a key value pair, when the key and value are passed
+ * as discontinuous values to a function.
+ * @param target the dynabuf to write to
+ * @param which the location to put the sequence of items into.
+ * @param next the offset to start at for this write within a transaction.
+ * @param value the next value to write into the specified key.
+ * @param size the size of the value which is to be written next.
+ * @return the next offset, or zero when the element is full. -1 on failure.
+ *
+ * Example usage:
+ * int next = dynabuf_set_seq(target, index, 0, "hello world", 11);
+ * dynabuf_set_seq(target, index, next, 1, sizeof(int));
+ */
+int dynabuf_set_seq(dynabuf_t *target, int which, int next,
+        void *value, int size);
+
+
+/**
  * Fetch an element from the dynabuf.
  * @param target the dynabuf to fetch from
  * @param idx the element number to retrieve

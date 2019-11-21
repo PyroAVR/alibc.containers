@@ -38,16 +38,9 @@ typedef struct {
     uint32_t    entries;
     uint32_t    capacity;
     uint32_t    status;
+    int val_offset;
 } hashmap_t;
 
-
-/*
- * key-value pair definiton - each kv_pair is one entry in the map
- */
-typedef struct {
-    void *key;
-    void *value;
-} kv_pair;
 
 /*
  * hashmap status indication - compliant with alibc/extensions standard errors
@@ -57,12 +50,14 @@ typedef alibc_internal_errors hashmap_status;
 /*
  * Constructor function for hashmap type
  * @param size the starting size of the map
+ * @param keysz size of keys, in bytes.
+ * @param valsz size of values in bytes.
  * @param hashfn the hash function to use for this map
  * @param comparefn the comparator to use for this map
  * @param loadfn memory load estimator, used to reduce collisions.
  * @return new hashmap, or null or errors
  */
-hashmap_t *create_hashmap(int size, hash_type *hashfn,
+hashmap_t *create_hashmap(int size, int keysz, int valsz, hash_type *hashfn,
         cmp_type *comparefn, load_type loadfn);
 
 /*
@@ -103,8 +98,7 @@ int hashmap_resize(hashmap_t *self, int count);
 /*
  * Compute the size in entries of the hashmap
  * @param self the map to use
- * @return the size of the map in kv_pair entries. The size in bytes may be
- * obtained by multiplying the result by sizeof(kv_pair)
+ * @return the size of the map in elements. 
  */
 uint32_t hashmap_size(hashmap_t *self);
 

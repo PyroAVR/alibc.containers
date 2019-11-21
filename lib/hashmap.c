@@ -7,7 +7,8 @@
 #include <string.h>
 
 // Private state and types
-#define kv_cast(x) ((kv_pair*)(x))
+#define value_at(self, idx) ((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
+#define key_at(self, idx) ((char*)dynabuf_fetch(self->map, idx))
 #define filter_size_constraint(x) ((x > 8) ? (x >> 3):1)
 
 
@@ -21,7 +22,7 @@ static inline bool default_load(int, int);
 
 
 
-hashmap_t *create_hashmap(int size, hash_type *hashfn,
+hashmap_t *create_hashmap(int size, int keysz, int valsz, hash_type *hashfn,
         cmp_type *comparefn, load_type loadfn) {
 
     hashmap_t *r    = malloc(sizeof(hashmap_t));
@@ -30,7 +31,7 @@ hashmap_t *create_hashmap(int size, hash_type *hashfn,
         return NULL;
     }
 
-    r->map    = create_dynabuf(size, sizeof(kv_pair));
+    r->map    = create_dynabuf(size, keysz + valsz);
     if(r->map == NULL)    {
         DBG_LOG("Could not create new array for hashmap\n");
         free(r);
@@ -44,7 +45,7 @@ hashmap_t *create_hashmap(int size, hash_type *hashfn,
         return NULL;
     }
 
-    memset(r->map->buf, 0, size*sizeof(kv_pair));
+    memset(r->map->buf, 0, size*(keysz + valsz));
     memset(r->_filter->buf, 0, filter_size_constraint(size));
 
     r->hash     = hashfn;
@@ -56,6 +57,7 @@ hashmap_t *create_hashmap(int size, hash_type *hashfn,
         r->load     = loadfn;
     }
 
+    r->val_offset = keysz;
     r->compare  = comparefn;
     r->entries  = 0;
     r->capacity = size;
@@ -77,9 +79,9 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
             // index guaranteed in range
             // scan for next open entry
             while(bitmap_contains(self->_filter, index))    {
-                if(kv_cast(dynabuf_fetch(self->map, index))->key != NULL &&
+                if(key_at(self, index) != NULL &&
                         self->compare(key,
-                        kv_cast(dynabuf_fetch(self->map, index))->key) == 0) {
+                        key_at(self, index)) == 0) {
                     DBG_LOG("got repeat key case\n");
                     goto repeat_key; // zoinks
                 }
@@ -97,13 +99,10 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
                 }
             }
             self->entries++;
-            kv_pair a;
+            int next = 0;
 repeat_key:
-            a = (kv_pair){ .key = key, .value = value};
-            dynabuf_set(self->map, index, (void*)&a);
-            /*
-             *kv_cast(self->map->buf)[index]  = a;
-             */
+            next = dynabuf_set_seq(self->map, index, 0, key, self->val_offset);
+            dynabuf_set_seq(self->map, index, next, value, self->map->elem_size - self->val_offset);
             bitmap_add(self->_filter, index);
         break;
 
@@ -139,7 +138,7 @@ void *hashmap_fetch(hashmap_t *self, void *key) {
             key_index = hashmap_locate(self, key);
             if(key_index != -1) {
                 self->status = SUCCESS;
-                return kv_cast(dynabuf_fetch(self->map, key_index))->value;
+                return value_at(self, key_index);
             }
             else    {
                 self->status = IDX_OOB; //fixme
@@ -163,7 +162,7 @@ void *hashmap_remove(hashmap_t *self, void *key)  {
         case SUCCESS:
             key_index = hashmap_locate(self, key);
             if(key_index != -1) {
-                value   = kv_cast(dynabuf_fetch(self->map, key_index))->value;
+                value   = value_at(self, key_index);
                 bitmap_remove(self->_filter, key_index);
                 return value;
             }
@@ -257,12 +256,12 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
         
         is_valid = bitmap_contains(self->_filter, index) != 0;
         if(is_valid) {
-            null_check  = kv_cast(dynabuf_fetch(self->map, index))->key == NULL;
+            null_check  = *(void**)dynabuf_fetch(self->map, index) == NULL;
             null_check  |= ((key == NULL) << 1);
             switch(null_check) {
                 case 0: // neither is null
                     is_equal = self->compare(key,
-                           kv_cast(dynabuf_fetch(self->map, index))->key) == 0;
+                           *(void**)dynabuf_fetch(self->map, index)) == 0;
                 break;
 
                 case 1:
@@ -304,7 +303,7 @@ static hashmap_status rehash(hashmap_t *self, int count)   {
         goto finish;
     }
 
-    scratch_map     = create_dynabuf(count, sizeof(kv_pair));
+    scratch_map     = create_dynabuf(count, self->map->elem_size);
     if(scratch_map == NULL) {
         DBG_LOG("Could not create new array with size %d\n",
                 self->capacity);
@@ -322,14 +321,14 @@ static hashmap_status rehash(hashmap_t *self, int count)   {
     }
 
     // clear out the new buffer
-    memset(scratch_map->buf, 0, count*sizeof(kv_pair));
+    memset(scratch_map->buf, 0, count*self->map->elem_size);
     memset(scratch_filter->buf, 0, filter_size_constraint(count));
 
     for(uint32_t i = 0; i < self->capacity; i++)    {
         if(!bitmap_contains(self->_filter, i))   {
             continue;
         }
-        uint32_t hash   = self->hash(kv_cast(dynabuf_fetch(self->map, i))->key);
+        uint32_t hash   = self->hash(key_at(self, i));
         uint32_t index  = hash % count;
         uint32_t start_index = index;
         // scan for next open entry

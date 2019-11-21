@@ -13,7 +13,7 @@ char *names[] = {"one", "two", "three", "four", "five",
 hashmap_t *ht_uut;
 
 void ht_init()  {
-    ht_uut  = create_hashmap(2, hashmap_hash_i64, strcmp, NULL);
+    ht_uut  = create_hashmap(2, sizeof(char*), sizeof(int), hashmap_hash_i64, strcmp, NULL);
     cr_assert_not_null(ht_uut);
     for(uint64_t i = 0; i < 10; i++) {
         hashmap_set(ht_uut, names[i], (void*)(i + 1));
@@ -27,8 +27,8 @@ void ht_finish()    {
 TestSuite(hash_tests, .init=ht_init, .fini=ht_finish);
 
 Test(hash_tests, test_setget)  {
-    for(uint64_t i = 0; i < 10; i++)    {
-        uint64_t result     = (uint64_t)hashmap_fetch(ht_uut, (void*)names[i]);
+    for(int i = 0; i < 10; i++)    {
+        int result     = *(int*)hashmap_fetch(ht_uut, (void*)names[i]);
         cr_assert_eq(result, i + 1, 
                     "map contains invalid entry for key %s: %d", names[i], result); 
     }
@@ -39,16 +39,17 @@ Test(hash_tests, test_setget)  {
 }
 
 Test(hash_tests, test_remove)   {
-    for(uint64_t i = 0; i < 10; i++)    {
-        uint64_t result = (uint64_t)hashmap_remove(ht_uut, (void*)names[i]);
+    for(int i = 0; i < 10; i++)    {
+        int result = *(int*)hashmap_remove(ht_uut, (void*)names[i]);
         cr_assert_eq(result, i + 1, "map contains invalid entry for key %s:%d",
                 names[i], result); 
     }
     cr_assert_null(hashmap_remove(ht_uut, "two hundred twenty one"), 
                     "removal of key not in map returned non-null");
 
-    for(uint64_t i = 0; i < 10; i++)    {
-        uint64_t result = (uint64_t)hashmap_fetch(ht_uut, (void*)names[i]);
+    for(int i = 0; i < 10; i++)    {
+        // careful not to deref null...
+        int result = (int*)hashmap_fetch(ht_uut, (void*)names[i]);
         cr_assert_null(result, "got result: %d for key: %s", result, names[i]);
     }
 }

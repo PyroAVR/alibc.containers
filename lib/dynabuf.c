@@ -82,6 +82,37 @@ done:
 }
 
 
+int dynabuf_set_seq(dynabuf_t *target, int which, int next,
+        void *value, int size) {
+    int next_idx = 0;
+    if(check_valid(target) != SUCCESS) {
+        goto done;
+    }
+    if(next + size > target->elem_size) {
+        next_idx = -1;
+        goto done;
+    }
+    if(size > sizeof(void*)) {
+        memcpy(
+            target->buf + (which * target->elem_size) + next,
+            value,
+            size
+        );
+    }
+    else {
+        memcpy(
+            target->buf + (which * target->elem_size) + next,
+            &value,
+            size
+        );
+    }
+    next_idx += size;
+    next_idx = next_idx >= target->elem_size ? 0: next_idx;
+done:
+    return next_idx;
+}
+
+
 void *dynabuf_fetch(dynabuf_t *target, int which) {
     void *r = NULL;
     if(check_valid(target) != SUCCESS) {
