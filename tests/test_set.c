@@ -93,11 +93,11 @@ Test(set_tests, iterator) {
     // iterate one too far - check stop
     for(int i = 0; i < 7; i++) {
         char *next = iter_next(iter);
-        if(i < 7) {
+        if(i < 6) {
             cr_assert_eq(iter->status, ITER_CONTINUE);
             cr_assert(set_contains(set_uut, next));
         }
-        else if(i == 7) {
+        else if(i == 6) {
             cr_assert_eq(iter->status, ITER_STOP);
             // oob case
             cr_assert_null(next, "returned a non-null result out of bounds");

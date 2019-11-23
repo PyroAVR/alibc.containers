@@ -162,7 +162,11 @@ if ext_criterion.found()
         'hashtest', 'tests/test_hashmap.c',
         include_directories: includes,
         link_with:
-            [sl_hashmap, sl_hashmap_defaults, sl_iterator, sl_hashmap_iter],
+            [
+                sl_hashmap, sl_hashmap_defaults,
+                sl_iterator, sl_hashmap_iter, 
+                sl_bitmap
+            ],
         dependencies: ext_criterion
     )
 
@@ -174,7 +178,9 @@ if ext_criterion.found()
 
     exe_set_test = executable(
         'settest', 'tests/test_set.c',
-        link_with: [sl_set, sl_hashmap_defaults, sl_iterator, sl_set_iter],
+        link_with: [
+            sl_set, sl_hashmap_defaults, sl_iterator, sl_set_iter
+        ],
         include_directories: includes,
         dependencies: ext_criterion
     )

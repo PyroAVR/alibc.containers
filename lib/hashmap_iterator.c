@@ -25,6 +25,7 @@ static void *hashmap_iter_keys(iter_context *ctx) {
     else {
         ctx->status = ITER_CONTINUE;
         r = key_at(target, ctx->index);
+        ctx->index++;
     }
 done:
     return r;
@@ -50,6 +51,7 @@ static void *hashmap_iter_values(iter_context *ctx) {
     else {
         ctx->status = ITER_CONTINUE;
         r = value_at(target, ctx->index);
+        ctx->index++;
     }
 done:
     return r;

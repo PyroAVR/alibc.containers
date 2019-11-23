@@ -24,6 +24,7 @@ static void *set_iter_next(iter_context *ctx) {
     else {
         ctx->status = ITER_CONTINUE;
         r = dynabuf_fetch(target->buf, ctx->index);
+        ctx->index++;
     }
 done:
     return r;

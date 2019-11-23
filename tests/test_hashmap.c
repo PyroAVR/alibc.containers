@@ -1,6 +1,7 @@
 #include <alibc/extensions/hashmap.h>
 #include <alibc/extensions/iterator.h>
 #include <alibc/extensions/hashmap_iterator.h>
+#include <alibc/extensions/bitmap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -82,10 +83,10 @@ Test(hash_tests, iterator_keys) {
     // iterate one too far - check stop
     for(int i = 0; i < 11; i++) {
         char *next = iter_next(iter);
-        if(i < 11) {
-            cr_assert_eq(iter->status, ITER_CONTINUE);
+        if(i < 10) {
+            cr_assert_eq(iter->status, ITER_CONTINUE, "i = %i", i);
         }
-        else if(i == 11) {
+        else if(i == 10) {
             cr_assert_eq(iter->status, ITER_STOP);
             // oob case
             cr_assert_null(next, "returned a non-null result out of bounds");
@@ -98,17 +99,22 @@ Test(hash_tests, iterator_values) {
     iter_context *iter = create_hashmap_values_iterator(ht_uut);
     cr_assert_not_null(iter, "iterator was null");
     cr_assert_eq(iter->status, ITER_READY);
+    bitmap_t *values_bmp = create_bitmap(sizeof(names)/sizeof(char*));
     // iterate one too far - check stop
     for(int i = 0; i < 11; i++) {
-        char *next = iter_next(iter);
-        if(i < 11) {
-            cr_assert_eq(iter->status, ITER_CONTINUE);
+        int *next = (int*)iter_next(iter);
+        if(i < 10) {
+            cr_assert_eq(iter->status, ITER_CONTINUE, "i = %i", i);
+            bitmap_add(values_bmp, *next);
         }
-        else if(i == 11) {
+        else if(i == 10) {
             cr_assert_eq(iter->status, ITER_STOP);
             // oob case
             cr_assert_null(next, "returned a non-null result out of bounds");
         }
+    }
+    for(int i = 0; i < sizeof(names)/sizeof(char*); i++) {
+        cr_assert(bitmap_contains(values_bmp, i + 1), "missed value %i\n", i + 1);
     }
     iter_free(iter);
 }
