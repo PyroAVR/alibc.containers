@@ -10,7 +10,7 @@
  */
 
 typedef struct _iter_context iter_context;
-typedef void *(iter_next_fn)(iter_context *ctx);
+typedef void **(iter_next_fn)(iter_context *ctx);
 
 struct _iter_context {
     uint32_t index;
@@ -33,7 +33,7 @@ typedef enum {
  * @return The next object in the sequence, or zero on error. Use iter_okay for
  * result validity checking.
  */
-void *iter_next(iter_context *ctx);
+void **iter_next(iter_context *ctx);
 
 /**
  * Retrieve the status of an iterator.

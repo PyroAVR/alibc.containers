@@ -76,7 +76,7 @@ int set_add(set_t *self, void *item);
  * @param item the item which should be dropped from the set
  * @return the item, or NULL on failure.
  */
-void *set_remove(set_t *self, void *item);
+void **set_remove(set_t *self, void *item);
 
 /*
  * Determine if an item is contained within the set

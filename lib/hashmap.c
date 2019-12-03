@@ -130,7 +130,7 @@ repeat_key:
 }
 
 
-void *hashmap_fetch(hashmap_t *self, void *key) {
+void **hashmap_fetch(hashmap_t *self, void *key) {
     hashmap_status  status;
     int             key_index;
     switch((status = check_valid(self)))    {
@@ -154,7 +154,7 @@ void *hashmap_fetch(hashmap_t *self, void *key) {
 }
 
 
-void *hashmap_remove(hashmap_t *self, void *key)  {
+void **hashmap_remove(hashmap_t *self, void *key)  {
     hashmap_status  status;
     int             key_index;
     void            *value;

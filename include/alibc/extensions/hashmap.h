@@ -73,17 +73,17 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value);
  * Retrieve the value associated with the given key
  * @param self the map to use
  * @param key the key to find in the map
- * @return the associated value, or NULL if the key is not known.
+ * @return pointer to the associated value, or NULL if the key is not known.
  */
-void *hashmap_fetch(hashmap_t *self, void *key);
+void **hashmap_fetch(hashmap_t *self, void *key);
 
 /*
  * Forget the association between a key and its value.
  * @param self the map to use
  * @param key the key whose value should be forgotten
- * @return the value, or NULL if the key is not known.
+ * @return pointer to the value, or NULL if the key is not known.
  */
-void *hashmap_remove(hashmap_t *self, void *key);
+void **hashmap_remove(hashmap_t *self, void *key);
 
 /*
  * Allocate sufficient space for count items to be stored in the hashmap.

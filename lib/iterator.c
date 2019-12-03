@@ -5,8 +5,8 @@
  */
 int check_status(iter_context *ctx);
 
-void *iter_next(iter_context *ctx) {
-    void *next_val = NULL;
+void **iter_next(iter_context *ctx) {
+    void **next_val = NULL;
     int status = check_status(ctx);
     if(status != ITER_READY && status != ITER_CONTINUE) {
         goto done;

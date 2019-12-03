@@ -4,8 +4,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-static void *set_iter_next(iter_context *ctx) {
-    void *r = NULL;
+static void **set_iter_next(iter_context *ctx) {
+    void **r = NULL;
     if(ctx == NULL) {
         goto done;
     }

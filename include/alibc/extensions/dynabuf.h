@@ -4,10 +4,12 @@
 /**
  * Dynamically sized memory allocations, with variable (but not dynamic) element
  * size.
- *  if the element size is <= sizeof(void*), we assume the element is a pointer
- *  or a value which is smaller than a pointer, and so write it directly.
- *  else, we take the value and assume it is a pointer to a memory location of
- *  the element size, and copy it.
+ * Each element is accepted as a value whose meaning is interpreted based upon
+ * the element size.  Elements with sizeof(element) <= sizeof(void *) will be
+ * treated as values.  Elements with sizeof(element) > sizeof(void *) will be
+ * treated as pointers to values.
+ *
+ * A double-pointer is always returned, regardless of the element size.
  */
 
 typedef struct {
@@ -64,7 +66,7 @@ int dynabuf_set_seq(dynabuf_t *target, int which, int next,
  * @param idx the element number to retrieve
  * @return the element, or NULL on error.
  */
-void *dynabuf_fetch(dynabuf_t *target, int which);
+void **dynabuf_fetch(dynabuf_t *target, int which);
 
 /**
  * Resize the dynabuf to a certain size, in elements.

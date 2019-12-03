@@ -195,4 +195,4 @@ endif
 # installation config
 
 # headers
-install_headers(_HEADERS)
+install_headers(_HEADERS, subdir: 'alibc/extensions')

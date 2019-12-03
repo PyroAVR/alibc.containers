@@ -87,7 +87,8 @@ static int rehash(set_t *self, int count) {
             continue;
         }
         
-        uint32_t hash   = self->hash(dynabuf_fetch(self->buf,i));
+        void **temp_item = dynabuf_fetch(self->buf,i);
+        uint32_t hash   = self->hash(*temp_item);
         uint32_t index  = hash % count;
         uint32_t start_index = index;
         while(bitmap_contains(scratch_filter, index)) {
@@ -102,7 +103,7 @@ static int rehash(set_t *self, int count) {
                 goto finish;
             }
         }
-        dynabuf_set(scratch_buf, index, dynabuf_fetch(self->buf, i));
+        dynabuf_set(scratch_buf, index, *temp_item);
         /*
          *scratch_buf->buf[index] = self->buf->buf[i];
          */
@@ -151,8 +152,9 @@ int set_add(set_t *self, void *item) {
 
     // loop until we find an open spot to insert into
     while(bitmap_contains(self->_filter, index)) {
-        if(dynabuf_fetch(self->buf, index) != NULL &&
-                self->compare(item, dynabuf_fetch(self->buf, index)) == 0) {
+        void **temp_item = dynabuf_fetch(self->buf, index);
+        if(temp_item != NULL && *temp_item != NULL &&
+                self->compare(item, *temp_item) == 0) {
 
             DBG_LOG("got repeat item case\n");
             goto repeat_item;
@@ -190,8 +192,8 @@ finish:
 }
 
 
-void *set_remove(set_t *self, void *item) {
-    void *r = NULL;
+void **set_remove(set_t *self, void *item) {
+    void **r = NULL;
     if(check_valid(self) != SET_SUCCESS) {
         goto finish;
     }
@@ -360,14 +362,13 @@ static int set_locate(set_t *self, void *item) {
 
         is_valid = bitmap_contains(self->_filter, index) != 0;
         if(is_valid) {
-            null_check  = dynabuf_fetch(self->buf, index) == NULL;
+            void **temp_item = dynabuf_fetch(self->buf, index);
+            // determine if both items are null, or just one, or zero.
+            null_check  =  temp_item == NULL;
             null_check  |= ((item == NULL) << 1);
             switch(null_check) {
                 case 0:
-                    is_equal = self->compare(
-                            item,
-                            dynabuf_fetch(self->buf, index)
-                    ) == 0;
+                    is_equal = self->compare(item, *temp_item) == 0;
                 break;
 
                 case 1:

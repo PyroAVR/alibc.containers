@@ -51,10 +51,10 @@ Test(array_tests, insert)   {
     array_insert(at_uut, 2, "lorem ipsum");
     int size = array_size(at_uut);
     cr_assert_eq(size, 9, "size check failed with size %d", size);
-    char *result    = array_fetch(at_uut, 2);
+    char *result    = *array_fetch(at_uut, 2);
     cr_assert(strcmp(result, "lorem ipsum") == 0,
                 "equality check failed, got: %s", result); 
-    result  = array_fetch(at_uut, array_size(at_uut)-1);
+    result  = *array_fetch(at_uut, array_size(at_uut)-1);
     // test swap() by proxy
     cr_assert(strcmp(result, "brown fox") == 0,
             "equality check failed, got: %s", result);
@@ -67,12 +67,12 @@ Test(array_tests, insert_unsafe) {
     array_insert_unsafe(at_uut, 2, "lorem ipsum");
     int size = array_size(at_uut);
     cr_assert_eq(size, 8, "size check failed with size %d", size);
-    char *result    = array_fetch(at_uut, 2);
+    char *result    = *array_fetch(at_uut, 2);
     cr_assert(strcmp(result, "lorem ipsum") == 0,
                 "equality check failed, got: %s", result); 
 
     array_insert_unsafe(at_uut, array_size(at_uut)-1, "unsafe insert");
-    result  = array_fetch(at_uut, array_size(at_uut)-1);
+    result  = *array_fetch(at_uut, array_size(at_uut)-1);
     // test swap() by proxy
     cr_assert(strcmp(result, "unsafe insert") == 0,
             "equality check failed, got: %s", result);
@@ -84,13 +84,13 @@ Test(array_tests, append)   {
     }
     int size = array_size(at_uut);
     cr_assert_eq(size, 8, "size check failed with size %d", size);
-    char *result    = array_fetch(at_uut, 6);
+    char *result    = *array_fetch(at_uut, 6);
     cr_assert(strcmp(result, "jumped over") == 0,
                 "equality check failed, got: %s", result); 
 }
 
 Test(array_tests, fetch)    {
-    char *result    = array_fetch(at_uut, 2);
+    char *result    = *array_fetch(at_uut, 2);
     cr_assert(strcmp(result, "jumped over") == 0,
                 "equality check failed, got: %s", result); 
     int size = array_size(at_uut);
@@ -104,7 +104,7 @@ Test(array_tests, fetch)    {
 }
 
 Test(array_tests, remove)   {
-    char *result    = array_remove(at_uut, 2);
+    char *result    = *array_remove(at_uut, 2);
     cr_assert(strcmp(result, "jumped over") == 0,
                 "equality check failed, got: %s", result); 
     int size = array_size(at_uut);
@@ -136,7 +136,7 @@ Test(array_tests, resize) {
 }
 
 Test(index_tests, indices) {
-    array_t *uut    = create_array(1, sizeof(char*));
+    array_t *uut    = create_array(1, sizeof(int));
     int result      = array_remove(uut, 0);
     cr_assert_null(result, "empty removal");
     result  = array_fetch(uut, 0);
@@ -147,14 +147,15 @@ Test(index_tests, indices) {
     cr_assert_null(result, "empty fetch beyond array limits");
 
     array_append(uut, (void*)1);
-    result  = array_fetch(uut, 0);
+    result  = *array_fetch(uut, 0);
     cr_assert_eq(result, 1, "incorrect fetch");
     result  = array_fetch(uut, 1);
     cr_assert_null(result, "fetch beyond array limits");
     result  = array_remove(uut, 1);
     cr_assert_null(result, "remove beyond array limits");
+    result  = array_remove(uut, 0);
     result  = array_fetch(uut, 0);
-    cr_assert_eq(result, 1, "fetch beyond array limits");
+    cr_assert_null(result, "remove did not decrement array size");
 
     array_free(uut);
 }
@@ -179,6 +180,9 @@ Test(array_tests, iterator) {
 }
 
 // BIG TESTS (for types > sizeof(void*))
+// XXX
+// Dereferencing the (void **) returns results in death
+// investigating...
 Test(array_tests_big, insert)   {
     for(int i = 0; i < 4; i++)  {
         array_insert(at_uut, i, data[3-i]);

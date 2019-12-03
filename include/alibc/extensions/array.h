@@ -69,9 +69,9 @@ array_status array_insert_unsafe(array_t *self, int where, void *item);
  * Retrieve an item from the array
  * @param self the array from which to retrieve the item
  * @param which the index to fetch
- * @return the item, or NULL if it does not exist.
+ * @return pointer to the item, or NULL if it does not exist.
  */
-void *array_fetch(array_t *self, int which);
+void **array_fetch(array_t *self, int which);
 
 /*
  * Allocate space for at least count items.
@@ -89,7 +89,7 @@ int array_resize(array_t *self, int count);
  * @param which the index to remove
  * @return the item, or NULL if it does not exist.
  */
-void *array_remove(array_t *self, int which);
+void **array_remove(array_t *self, int which);
 
 /*
  * Cause the index of two objects in the array to be exchanged

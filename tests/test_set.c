@@ -93,6 +93,11 @@ Test(set_tests, iterator) {
     // iterate one too far - check stop
     for(int i = 0; i < 7; i++) {
         char *next = iter_next(iter);
+        // cover the last correct iter
+        if(next == NULL) {
+            continue;
+        }
+        next = *(void**)next;
         if(i < 6) {
             cr_assert_eq(iter->status, ITER_CONTINUE);
             cr_assert(set_contains(set_uut, next));

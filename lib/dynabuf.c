@@ -113,17 +113,12 @@ done:
 }
 
 
-void *dynabuf_fetch(dynabuf_t *target, int which) {
-    void *r = NULL;
+void **dynabuf_fetch(dynabuf_t *target, int which) {
+    void **r = NULL;
     if(check_valid(target) != SUCCESS) {
         goto done;
     }
-    if(target->elem_size > sizeof(void*)) {
-        r = target->buf + (which * target->elem_size);
-    }
-    else {
-        r = *(void**)(target->buf + (which * target->elem_size));
-    }
+    r = target->buf + (which * target->elem_size);
 done:
     return r;
 }

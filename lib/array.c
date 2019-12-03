@@ -47,9 +47,10 @@ array_status array_insert(array_t *self, int where, void *item)   {
                 return IDX_OOB;
             }
             // decay to append operation if no swap is needed
-            if(where != self->size) {
+            if(where <= self->size) {
                 // swapping allows for constant-time insertion, but 
                 // changes the order of unrelated objects.
+                // place the object just past the end of the array
                 array_swap(self, where, self->size);
             }
             dynabuf_set(self->data, where, item);
@@ -91,11 +92,13 @@ array_status array_insert_unsafe(array_t *self, int where, void *item) {
         goto done;
     }
     // decay to append operation if no swap is needed
-    if(where != self->size) {
-        // swapping allows for constant-time insertion, but 
-        // changes the order of unrelated objects.
-        array_swap(self, where, self->size);
-    }
+    /*
+     *if(where != self->size) {
+     *    // swapping allows for constant-time insertion, but 
+     *    // changes the order of unrelated objects.
+     *    array_swap(self, where, self->size);
+     *}
+     */
     dynabuf_set(self->data, where, item);
     status = SUCCESS;
     
@@ -133,25 +136,28 @@ array_status array_append(array_t *self, void *item)  {
 }
 
 
-void *array_fetch(array_t *self, int which)    {
-    switch(check_valid(self))   {
-        case SUCCESS:
-            if(which > self->size) {
-                DBG_LOG("Requested fetch index was out of bounds: %d\n", which);
-                self->status = IDX_OOB;
-                return NULL;
-            }
-            else  {
-                self->status = SUCCESS;
-                return dynabuf_fetch(self->data, which);
-            }
-        break;
-
-        default:
-            DBG_LOG("Array state was invalid on fetch operation\n");
-            self->status = STATE_INVAL;
-            return NULL;
+void **array_fetch(array_t *self, int which)    {
+    void **r = NULL;
+    if(check_valid(self) != SUCCESS) {
+        DBG_LOG("Array state was invalid on fetch operation\n");
+        goto done;
     }
+    if(self->size == 0) {
+        DBG_LOG("Requested fetch with size zero\n");
+        self->status = IDX_OOB;
+        goto done;
+    }
+    if(which >= self->size) {
+        DBG_LOG("Requested fetch index was out of bounds: %d\n", which);
+        self->status = IDX_OOB;
+        goto done;
+    }
+    else  {
+        self->status = SUCCESS;
+        r = dynabuf_fetch(self->data, which);
+    }
+done:
+    return r;
 }
 
 
@@ -198,34 +204,32 @@ finish:
 }
 
 
-void *array_remove(array_t *self, int which)  {
-    switch(check_valid(self))   {
-        case SUCCESS:
-            if(self->size == 0) {
-                self->status = IDX_OOB;
-                return NULL;
-            }
-            if(which >= self->size)  {
-                DBG_LOG("Requested remove index was out of bounds: %d\n",
-                        which);
-                self->status = IDX_OOB;
-                return NULL;
-            }
-            else    {
-                array_swap(self, which, self->size);
-                // the item specified by 'which' is now at the end of the array,
-                // in the space after size
-                self->status = SUCCESS;
-                return dynabuf_fetch(self->data, self->size--);
-            }
-        break;
-        default:
-            DBG_LOG("Array state was invalid on remove operation\n");
-            self->status = STATE_INVAL;
-            return NULL;
-        break;
-
+void **array_remove(array_t *self, int which)  {
+    void **r = NULL;
+    if(check_valid(self) != SUCCESS) {
+        DBG_LOG("Array state was invalid on remove operation\n");
+        goto done;
     }
+    if(self->size == 0) {
+        self->status = IDX_OOB;
+        goto done;
+    }
+    if(which >= self->size)  {
+        DBG_LOG("Requested remove index was out of bounds: %d\n",
+                which);
+        self->status = IDX_OOB;
+        goto done;
+    }
+    else {
+        // swap in the last valid
+        array_swap(self, which, self->size-1);
+        // the item specified by 'which' is now at the end of the array
+        r = dynabuf_fetch(self->data, self->size-1);
+        self->status = SUCCESS;
+        self->size--;
+    }
+done:
+    return r;
 }
 
 array_status array_swap(array_t *self, int first, int second) {
@@ -233,6 +237,7 @@ array_status array_swap(array_t *self, int first, int second) {
     if((status = check_valid(self)) != SUCCESS) {
         goto done;
     }
+    // > instead of >= to allow swapping in a NULL without append...
     if(first > self->size || second > self->size) {
         status = IDX_OOB;
         goto done;
@@ -240,9 +245,11 @@ array_status array_swap(array_t *self, int first, int second) {
     // due to larger-than-register sizes, we cannot simply swap values,
     // a true memory-to-memory copy may be needed (rats)
     if(self->data->elem_size <= sizeof(void*)) {
-        void *tmp = dynabuf_fetch(self->data, first);
-        dynabuf_set(self->data, first, dynabuf_fetch(self->data, second));
-        dynabuf_set(self->data, second, tmp);
+        void *tmp_first = *dynabuf_fetch(self->data, first);
+        void *tmp_second = *dynabuf_fetch(self->data, second);
+        dynabuf_set(self->data, first, tmp_second);
+        dynabuf_set(self->data, second, tmp_first);
+        status = SUCCESS;
     }
     else {
         char *cpy_buf = malloc(self->data->elem_size);
@@ -253,9 +260,11 @@ array_status array_swap(array_t *self, int first, int second) {
         memcpy(
             cpy_buf, dynabuf_fetch(self->data, first), self->data->elem_size
         );
+        printf("first, second: %i, %i\n", first, second);
         dynabuf_set(self->data, first, dynabuf_fetch(self->data, second));
         dynabuf_set(self->data, second, cpy_buf);
         free(cpy_buf);
+        status = SUCCESS;
     }
 done:
     return status;
