@@ -90,18 +90,23 @@ static int rehash(set_t *self, int count) {
         void **temp_item = dynabuf_fetch(self->buf,i);
         uint32_t hash   = self->hash(*temp_item);
         uint32_t index  = hash % count;
-        uint32_t start_index = index;
+        /*
+         *uint32_t start_index = index;
+         */
         while(bitmap_contains(scratch_filter, index)) {
             index = (index + 1) % self->capacity;
-            if(index == start_index) {
-                DBG_LOG("Could not find a suitable location to insert hash: "
-                        "%d and new size: %d\n", hash, count);
-                dynabuf_free(scratch_buf);
-                bitmap_free(scratch_filter);
-                self->status = SET_NO_MEM;
-                status = SET_NO_MEM;
-                goto finish;
-            }
+            // space was reserved for the re-index, this is impossible.
+            /*
+             *if(index == start_index) {
+             *    DBG_LOG("Could not find a suitable location to insert hash: "
+             *            "%d and new size: %d\n", hash, count);
+             *    dynabuf_free(scratch_buf);
+             *    bitmap_free(scratch_filter);
+             *    self->status = SET_NO_MEM;
+             *    status = SET_NO_MEM;
+             *    goto finish;
+             *}
+             */
         }
         dynabuf_set(scratch_buf, index, *temp_item);
         /*
@@ -125,7 +130,7 @@ int set_add(set_t *self, void *item) {
     int status = SET_INVALID; 
     switch(check_space_available(self, 1)) {
         case SET_INVALID:
-            goto finish;
+            goto invalid_self;
         break;
 
         case SET_NO_MEM:
@@ -148,7 +153,9 @@ int set_add(set_t *self, void *item) {
 
     uint32_t    hash        = self->hash(item);
     uint32_t    index       = hash % self->capacity;
-    uint32_t    start_index = index;
+    /*
+     *uint32_t    start_index = index;
+     */
 
     // loop until we find an open spot to insert into
     while(bitmap_contains(self->_filter, index)) {
@@ -160,18 +167,21 @@ int set_add(set_t *self, void *item) {
             goto repeat_item;
         }
         index = (index + 1) % self->capacity;
-        if(index == start_index) {
-            if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
-                status = set_add(self, item);
-                goto finish;
-            }
-            else {
-                DBG_LOG("could not resize set on add, but space was reported "
-                        "available, structure corruption is likely.\n");
-                status = SET_NO_MEM;
-                goto finish;
-            }
-        }
+        // this case should be impossible to reach given the above.
+        /*
+         *if(index == start_index) {
+         *    if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
+         *        status = set_add(self, item);
+         *        goto finish;
+         *    }
+         *    else {
+         *        DBG_LOG("could not resize set on add, but space was reported "
+         *                "available, structure corruption is likely.\n");
+         *        status = SET_NO_MEM;
+         *        goto finish;
+         *    }
+         *}
+         */
     }
     
     self->entries++;
@@ -188,6 +198,7 @@ repeat_item:
     }
 finish:
     self->status = status;
+invalid_self:
     return status;
 }
 
@@ -364,7 +375,7 @@ static int set_locate(set_t *self, void *item) {
         if(is_valid) {
             void **temp_item = dynabuf_fetch(self->buf, index);
             // determine if both items are null, or just one, or zero.
-            null_check  =  temp_item == NULL;
+            null_check  =  *temp_item == NULL;
             null_check  |= ((item == NULL) << 1);
             switch(null_check) {
                 case 0:

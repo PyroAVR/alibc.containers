@@ -2,14 +2,11 @@
 #include <alibc/extensions/iterator.h>
 #include <stdlib.h>
 #include <stdio.h>
-#define value_at(self, idx) ((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
-#define key_at(self, idx) ((char*)dynabuf_fetch(self->map, idx))
+#define value_at(self, idx) (void**)((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
+#define key_at(self, idx) (void**)((char*)dynabuf_fetch(self->map, idx))
 
-static void *hashmap_iter_keys(iter_context *ctx) {
-    void *r = NULL;
-    if(ctx == NULL) {
-        goto done;
-    }
+static void **hashmap_iter_keys(iter_context *ctx) {
+    void **r = NULL;
     hashmap_t *target = (hashmap_t*)ctx->_data;
     if(target == NULL) {
         ctx->status = ITER_INVALID;
@@ -31,11 +28,8 @@ done:
     return r;
 }
 
-static void *hashmap_iter_values(iter_context *ctx) {
+static void **hashmap_iter_values(iter_context *ctx) {
     void *r = NULL;
-    if(ctx == NULL) {
-        goto done;
-    }
     hashmap_t *target = (hashmap_t*)ctx->_data;
     if(target == NULL) {
         ctx->status = ITER_INVALID;

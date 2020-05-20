@@ -4,9 +4,6 @@
 
 static void *array_iter_next(iter_context *ctx) {
     void *r = NULL;
-    if(ctx == NULL) {
-        goto done;
-    }
     array_t *target = (array_t*)ctx->_data;
     if(target == NULL) {
         ctx->status = ITER_INVALID;
@@ -16,7 +13,7 @@ static void *array_iter_next(iter_context *ctx) {
         r = array_fetch(target, ctx->index);
         ctx->index++;
     }
-    if(ctx->index > array_size(target) || array_size(target) == 0) {
+    if(ctx->index >= array_size(target) || array_size(target) == 0) {
         ctx->status = ITER_STOP;
     }
     else {

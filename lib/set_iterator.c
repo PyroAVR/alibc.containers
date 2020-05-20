@@ -6,9 +6,6 @@
 
 static void **set_iter_next(iter_context *ctx) {
     void **r = NULL;
-    if(ctx == NULL) {
-        goto done;
-    }
     set_t *target = (set_t*)ctx->_data;
     if(target == NULL) {
         ctx->status = ITER_INVALID;

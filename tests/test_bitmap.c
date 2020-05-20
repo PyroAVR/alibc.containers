@@ -2,61 +2,90 @@
 #include <string.h>
 #include <stdint.h>
 #include <alibc/extensions/bitmap.h>
-#include <criterion/criterion.h>
+#include <setjmp.h>
+#include <cmocka.h>
 
-bitmap_t *bm_uut;
-
-void bm_init(void) {
-    bm_uut = create_bitmap(4);
+static int bm_init(void **state) {
+    bitmap_t *bm_uut = create_bitmap(4);
+    *state = bm_uut;
+    return 0;
 }
 
-void bm_finish(void) {
-    bitmap_free(bm_uut);
+static int bm_finish(void **state) {
+    bitmap_t *uut = *state;
+    bitmap_free(uut);
+    return 0;
 }
 
-TestSuite(bitmap_tests, .init=bm_init, .fini=bm_finish, .timeout=0);
-
-Test(bitmap_tests, min_size) {
-    cr_assert_eq(bm_uut->capacity, 1, "allocated bad array size");
+static void test_min_capacity(void **state) {
+    bitmap_t *uut = create_bitmap(1);
+    assert_int_equal(uut->capacity, 1);
 }
 
-Test(bitmap_tests, add) {
+static void test_add(void **state) {
+    bitmap_t *uut = *state;
     uint8_t p = 1;
     for(int i = 0; i < 8; i++) {
-        bitmap_add(bm_uut, i);
-        cr_assert(((char*)bm_uut->buf)[0] & (1 << i),
-                "incorrect bitmap value for %d on insert", i);
+        bitmap_add(uut, i);
+        assert_true(((char*)uut->buf)[0] & (1 << i));
         p |= p << 1;
     }
 }
 
-Test(bitmap_tests, remove) {
-    ((char*)bm_uut->buf)[0] = 255;
+static void test_remove(void **state) {
+    bitmap_t *uut = *state;
+    ((char*)uut->buf)[0] = 255;
     int p = 255;
     for(int i = 7; i >= 0; i--) {
-        bitmap_remove(bm_uut, i);
+        bitmap_remove(uut, i);
         p >>= 1;
-        cr_assert_eq(((char*)bm_uut->buf)[0], p, 
-                "incorrect bitmap value for %d on remove", i);
+        assert_int_equal(((char*)uut->buf)[0], p);
     }
 }
 
-Test(bitmap_tests, contains) {
-    bitmap_add(bm_uut, 1);
-    bitmap_add(bm_uut, 1);
-    bitmap_add(bm_uut, 2);
-    bitmap_add(bm_uut, 3);
-    bitmap_add(bm_uut, 5);
-    cr_assert(bitmap_contains(bm_uut, 1), "could not find 1");
-    cr_assert(bitmap_contains(bm_uut, 2), "could not find 2");
-    cr_assert(bitmap_contains(bm_uut, 3), "could not find 3");
-    cr_assert(bitmap_contains(bm_uut, 5), "could not find 5");
+static void test_resize(void **state) {
+    bitmap_t *uut = *state;
+    uut = bitmap_resize(uut, 10);
+    assert_non_null(uut);
+    assert_int_equal(uut->capacity, 2);
 }
 
-/*
- *Test(bitmap_tests, resize) {
- *    bitmap_resize(bm_uut, 65536);
- *    bitmap_add(bm_uut, 41139);
- *    cr_assert(bitmap_contains(bm_uut, 41139) > 0, "41139 not in bitmap");
- *}
- */
+static void test_contains(void **state) {
+    bitmap_t *uut = *state;
+    bitmap_add(uut, 1);
+    bitmap_add(uut, 1);
+    bitmap_add(uut, 2);
+    bitmap_add(uut, 3);
+    bitmap_add(uut, 5);
+    assert_true(bitmap_contains(uut, 1));
+    assert_true(bitmap_contains(uut, 2));
+    assert_true(bitmap_contains(uut, 3));
+    assert_true(bitmap_contains(uut, 5));
+}
+
+int main(int argc, char **argv) {
+    const struct CMUnitTest tests[] = {
+        cmocka_unit_test(test_min_capacity),
+        cmocka_unit_test_setup_teardown(
+            test_add,
+            bm_init,
+            bm_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_remove,
+            bm_init,
+            bm_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_contains,
+            bm_init,
+            bm_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_resize,
+            bm_init,
+            bm_finish
+        )
+    };
+    return cmocka_run_group_tests(tests, NULL, NULL);
+}

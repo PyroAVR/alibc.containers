@@ -39,12 +39,14 @@ array_t *create_array(uint32_t size, uint32_t unit) {
 }
 
 
-array_status array_insert(array_t *self, int where, void *item)   {
-    switch(check_space_available(self, 1))  {
+array_status array_insert(array_t *self, int where, void *item) {
+    int status = SUCCESS;
+    switch((status = check_space_available(self, 1))) {
         case SUCCESS:
-            if(where > self->size)  {
+            if(where > self->size) {
                 DBG_LOG("Attempted insert beyond end of array.\n");
-                return IDX_OOB;
+                status = IDX_OOB;
+                goto done;
             }
             // decay to append operation if no swap is needed
             if(where <= self->size) {
@@ -53,40 +55,54 @@ array_status array_insert(array_t *self, int where, void *item)   {
                 // place the object just past the end of the array
                 array_swap(self, where, self->size);
             }
-            dynabuf_set(self->data, where, item);
-            self->size++;
-            self->status = SUCCESS;
+            status = dynabuf_set(self->data, where, item);
+            if(status == SUCCESS) {
+                self->size++;
+            }
+            goto done;
         break;
 
         case NO_MEM:
             // try to allocate more space to store this item
-            if(array_resize(self, 2*self->size + 1) == SUCCESS)   {
+            if(array_resize(self, 2*self->size + 1) == SUCCESS) {
                 DBG_LOG("realloc successful pre-insertion\n");
-                return array_insert(self, where, item);
+                status = array_insert(self, where, item);
+                goto done;
             }
             DBG_LOG("No space to insert new item. Ignoring.\n");
-            self->status = NO_MEM;
-            return NO_MEM;
+            goto done;
         break;
         
         default:
             DBG_LOG("Array state was invalid on insert operation\n");
-            self->status = STATE_INVAL;
+            goto invalid_self;
         break;
     }
-    self->status = SUCCESS;
-    return SUCCESS;
+done:
+    self->status = status;
+invalid_self:
+    return status;
 }
 
 
 array_status array_insert_unsafe(array_t *self, int where, void *item) {
     array_status status;
-    if((status = check_valid(self)) != SUCCESS) {
+    switch((status = check_valid(self))) {
+        case SUCCESS:
+        break;
+
+        case NULL_ARG:
+            DBG_LOG("self was not valid on unsafe insert.\n");
+            goto invalid_self;
+        break;
+
+        default:
         DBG_LOG("Array was not valid on unsafe insert.\n");
         goto done;
+        break;
     }
 
-    if(where > self->size)  {
+    if(where > self->size) {
         DBG_LOG("Attempted insert beyond end of array.\n");
         status = IDX_OOB;
         goto done;
@@ -104,35 +120,39 @@ array_status array_insert_unsafe(array_t *self, int where, void *item) {
     
 done:
     self->status = status;
+invalid_self:
     return status;
 }
 
 
-array_status array_append(array_t *self, void *item)  {
+array_status array_append(array_t *self, void *item) {
     int status;
-    switch(check_space_available(self, 1))   {
+    switch((status = check_space_available(self, 1))) {
         case SUCCESS:
-            dynabuf_set(self->data, self->size++, item);
+            status = dynabuf_set(self->data, self->size++, item);
         break;
 
         case NO_MEM:
             DBG_LOG("realloc needed\n");
             if((status = array_resize(self, 2*self->size + 1)) == SUCCESS) {
-                return array_append(self, item);
+                status = array_append(self, item);
             }
-            else    {
-                self->status = NO_MEM;
-                return NO_MEM;
-            }
+            goto done;
         break;
-        
+
+        case NULL_ARG:
+            goto invalid_self;
+        break;
+
         default:
             DBG_LOG("Array state was invalid on append operation\n");
-            self->status = STATE_INVAL;
+            goto done;
         break;
     }
-    self->status = SUCCESS;
-    return SUCCESS;
+done:
+    self->status = status;
+invalid_self:
+    return status;
 }
 
 
@@ -165,6 +185,10 @@ int array_resize(array_t *self, int count) {
     int status = SUCCESS;
     if(check_valid(self) != SUCCESS) {
         status = NULL_ARG;
+        goto invalid_finish;
+    }
+    // no-op case
+    if(count == self->size) {
         goto finish;
     }
     if(count*self->data->elem_size > self->data->capacity) {
@@ -200,24 +224,36 @@ int array_resize(array_t *self, int count) {
 
 finish:
     self->status = status;
+invalid_finish:
     return status;
 }
 
 
 void **array_remove(array_t *self, int which)  {
     void **r = NULL;
-    if(check_valid(self) != SUCCESS) {
-        DBG_LOG("Array state was invalid on remove operation\n");
-        goto done;
+    int status;
+    switch((status = check_valid(self))) {
+        case SUCCESS:
+        break;
+
+        case NULL_ARG:
+            DBG_LOG("self was invlaid on remove operation.\n");
+            goto invalid_self;
+        break;
+
+        default:
+            DBG_LOG("Array state was invalid on remove operation\n");
+            goto done;
+        break;
     }
     if(self->size == 0) {
-        self->status = IDX_OOB;
+        status = IDX_OOB;
         goto done;
     }
     if(which >= self->size)  {
         DBG_LOG("Requested remove index was out of bounds: %d\n",
                 which);
-        self->status = IDX_OOB;
+        status = IDX_OOB;
         goto done;
     }
     else {
@@ -225,10 +261,12 @@ void **array_remove(array_t *self, int which)  {
         array_swap(self, which, self->size-1);
         // the item specified by 'which' is now at the end of the array
         r = dynabuf_fetch(self->data, self->size-1);
-        self->status = SUCCESS;
+        status = SUCCESS;
         self->size--;
     }
 done:
+    self->status = status;
+invalid_self:
     return r;
 }
 
@@ -260,7 +298,6 @@ array_status array_swap(array_t *self, int first, int second) {
         memcpy(
             cpy_buf, dynabuf_fetch(self->data, first), self->data->elem_size
         );
-        printf("first, second: %i, %i\n", first, second);
         dynabuf_set(self->data, first, dynabuf_fetch(self->data, second));
         dynabuf_set(self->data, second, cpy_buf);
         free(cpy_buf);
@@ -282,8 +319,8 @@ int array_size(array_t *self) {
         break;
 
         default:
-            self->status = STATE_INVAL;
             return -1;
+        break;
     }
 }
 
@@ -324,21 +361,16 @@ static array_status check_valid(array_t *self)    {
 
 // size in elements, not bytes
 static array_status check_space_available(array_t *self, int elements)  {
-    switch(check_valid(self))   {
+    int status = SUCCESS;
+    switch((status = check_valid(self))) {
         case SUCCESS:
-            if(self->size + elements <=
+            if(self->size + elements >
                self->data->capacity/self->data->elem_size) {
-                return SUCCESS;
-            }
-            else    {
-                return NO_MEM;
+                status = NO_MEM;
             }
         break;
-
-        default:
-            return NO_MEM;
     }
-    return SUCCESS;
+    return status;
 } 
 
 //todo: 

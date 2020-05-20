@@ -3,7 +3,7 @@
 /*
  * Internal status-check function
  */
-int check_status(iter_context *ctx);
+static int check_status(iter_context *ctx);
 
 void **iter_next(iter_context *ctx) {
     void **next_val = NULL;
@@ -32,7 +32,7 @@ void iter_free(iter_context *ctx) {
 /*
  * Helper functions
  */
-int check_status(iter_context *ctx) {
+static int check_status(iter_context *ctx) {
     if(ctx == NULL) {
         return ITER_NULL;
     }

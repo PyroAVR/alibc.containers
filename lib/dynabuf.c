@@ -49,7 +49,7 @@ dynabuf_status dynabuf_resize(dynabuf_t *target, int size) {
 
         break;
         default:
-            DBG_LOG("Target was not valid: %d", status);
+            DBG_LOG("Target was not valid: %d\n", status);
             goto done;
         break;
     }
@@ -86,9 +86,10 @@ int dynabuf_set_seq(dynabuf_t *target, int which, int next,
         void *value, int size) {
     int next_idx = 0;
     if(check_valid(target) != SUCCESS) {
+        next_idx = -1;
         goto done;
     }
-    if(next + size > target->elem_size) {
+    if(next + size > target->elem_size || next < 0) {
         next_idx = -1;
         goto done;
     }

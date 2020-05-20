@@ -5,10 +5,9 @@
 #include <alibc/extensions/hashmap.h>
 #include <alibc/extensions/iterator.h>
 #include <alibc/extensions/set_iterator.h>
-#include <criterion/criterion.h>
 #include <string.h>
-
-set_t *set_uut;
+#include <setjmp.h>
+#include <cmocka.h>
 
 char *items[] = {"do not go gentle into that good night,",
                  "old age should burn and rave at the close of day,",
@@ -18,95 +17,208 @@ char *items[] = {"do not go gentle into that good night,",
                  "do not go gentle into that good night."
 };
 
-void set_init(void) {
-    set_uut = create_set(4, sizeof(char*), hashmap_hash_str, strcmp, NULL);
+static bool full_load(int entries, int capacity) {
+    return entries >= capacity;
 }
 
-void set_finish(void) {
-    set_free(set_uut);
+static int set_init(void **state) {
+    set_t *uut = create_set(
+        1, sizeof(char*), hashmap_hash_str, strcmp, full_load
+    );
+    *state = uut;
+    return 0;
 }
 
-TestSuite(set_tests, .init=set_init, .fini=set_finish, .timeout=0);
+static int set_finish(void **state) {
+    set_t *uut = *state;
+    set_free(uut);
+    return 0;
+}
 
-Test(set_tests, add) {
+
+static void test_add(void **state) {
+    set_t *uut = *state;
     for(int i = 0; i < 6; i++)  {
-        set_add(set_uut, items[i]);
+        set_add(uut, items[i]);
     }
     for(int i = 0; i < 6; i++) {
-        cr_assert(set_contains(set_uut, items[i]),
-                "could not find %s in set", items[i]);
+        assert_true(set_contains(uut, items[i]));
     }
 
-    uint64_t result = set_contains(set_uut, "we live, as we dream... alone.");
-    cr_assert_eq(result, 0, "found an item which was not added to the set.");
-    cr_assert_eq(set_okay(set_uut), SET_NOTFOUND);
-
-}
-
-Test(set_tests, remove) {
-    for(int i = 0; i < 6; i++)  {
-        set_add(set_uut, items[i]);
-    }
-    for(int i = 0; i < 6; i++) {
-        set_remove(set_uut, items[i]);
-        cr_assert(!set_contains(set_uut, items[i]),
-                "item %s found, should be missing.", items[i]);
-    }
-
-    cr_assert_eq(set_remove(set_uut, "whoops please edit"), NULL,
-            "allowed removal of non-existant item");
+    int result = set_contains(uut, "we live, as we dream... alone.");
+    assert_int_equal(result, 0);
+    assert_int_equal(set_okay(uut), SET_NOTFOUND);
     
-    set_add(set_uut, "blep");
-    set_add(set_uut, "blep");
-    set_remove(set_uut, "blep");
-    cr_assert(!set_contains(set_uut, "blep"), "duplicate entry allowed.");
+    // test resize case 1: no space on first addition 
+    // (we'll have to corrupt the structure to do this)
+    uut->capacity = set_size(uut);
+    result = set_add(uut, "resize me");
+    assert_int_equal(result, SET_SUCCESS);
 }
 
-Test(set_tests, resize) {
+static void test_remove(void **state) {
+    set_t *uut = *state;
+    for(int i = 0; i < 6; i++)  {
+        set_add(uut, items[i]);
+    }
+    for(int i = 0; i < 6; i++) {
+        set_remove(uut, items[i]);
+        assert_false(set_contains(uut, items[i]));
+    }
+
+    // remove a non-existant element
+    assert_null(set_remove(uut, "whoops please edit"));
+    
+    // ensure uniqueness
+    set_add(uut, "blep");
+    set_add(uut, "blep");
+    set_remove(uut, "blep");
+    assert_false(set_contains(uut, "blep"));
+}
+
+static void test_resize(void **state) {
+    set_t *uut = *state;
     int result;
     char *more_items[] = {"one", "two", "three", "four", "five"};
     for(int i = 0; i < 5; i++) {
-        set_add(set_uut, (void*)more_items[i]);
+        set_add(uut, (void*)more_items[i]);
     }
-    result = set_resize(set_uut, 3);
-    cr_assert_eq(result, set_okay(set_uut), "status not set");
-    cr_assert_eq(result, SET_INVALID_REQ, "Allowed resize of < count of elements.");
+    // do not allow resize to smaller than number of elements
+    result = set_resize(uut, 3);
+    assert_int_equal(result, set_okay(uut));
+    assert_int_equal(result, SET_INVALID_REQ);
 
-    result = set_resize(set_uut, set_size(set_uut));
-    cr_assert_eq(result, SET_SUCCESS, "resize no-op failed.");
+    // ensure no-op is allowed
+    result = set_resize(uut, set_size(uut));
+    assert_int_equal(result, SET_SUCCESS);
 
-    result = set_resize(set_uut, 50);
-    cr_assert_eq(result, SET_SUCCESS, "could not resize set to size 50.");
+    // ensure pre-reservation of extra space works
+    result = set_resize(uut, 50);
+    assert_int_equal(result, SET_SUCCESS);
 }
-/*
- * TODO: separate this into iterator tests, to allow testing without a full
- * build.
- */
 
-Test(set_tests, iterator) {
+static void test_iterator(void **state) {
+    // test with a bad context
+    iter_context *iter = create_set_iterator(NULL);
+    char *next = iter_next(iter);
+    assert_null(next);
+    assert_int_equal(iter_okay(iter), ITER_INVALID);
+    iter_free(iter);
+
+    set_t *uut = *state;
     for(int i = 0; i < 6; i++)  {
-        set_add(set_uut, items[i]);
+        set_add(uut, items[i]);
     }
-    iter_context *iter = create_set_iterator(set_uut);
-    cr_assert_not_null(iter, "iterator was null");
-    cr_assert_eq(iter->status, ITER_READY);
+    iter = create_set_iterator(uut);
+    assert_non_null(iter);
+    assert_int_equal(iter->status, ITER_READY);
     // iterate one too far - check stop
-    for(int i = 0; i < 7; i++) {
-        char *next = iter_next(iter);
-        // cover the last correct iter
-        if(next == NULL) {
-            continue;
+    for(int i = 0; i < set_size(uut) + 1; i++) {
+        next = iter_next(iter);
+        if(next != NULL) {
+            next = *(char**)next;
         }
-        next = *(void**)next;
-        if(i < 6) {
-            cr_assert_eq(iter->status, ITER_CONTINUE);
-            cr_assert(set_contains(set_uut, next));
+        if(i < set_size(uut)) {
+            assert_int_equal(iter->status, ITER_CONTINUE);
+            assert_true(set_contains(uut, next));
         }
-        else if(i == 6) {
-            cr_assert_eq(iter->status, ITER_STOP);
+        else {
+            assert_int_equal(iter->status, ITER_STOP);
             // oob case
-            cr_assert_null(next, "returned a non-null result out of bounds");
+            assert_null(next);
         }
     }
     iter_free(iter);
+}
+
+static void test_invalid_calls(void **state) {
+    // test every check_space_available/check_valid case
+    int r = set_add(NULL, NULL);
+    assert_int_equal(r, SET_INVALID);
+
+    r = set_remove(NULL, NULL);
+    assert_null(r);
+
+    r = set_resize(NULL, 0);
+    assert_int_equal(r, SET_INVALID);
+
+    r = set_size(NULL);
+    assert_int_equal(r, -1);
+
+    r = set_contains(NULL, NULL);
+    assert_int_equal(r, 0);
+
+    // check for invalid load function
+    set_t *uut = *state;
+    uut->load = NULL;
+    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+
+    // invalid compare function
+    uut->compare = NULL;
+    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+
+    // invalid bitmap
+    uut->_filter = NULL;
+    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+
+    // invalid buffer
+    uut->buf = NULL;
+    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+}
+
+static int bad_hash_fn(void *item) {
+    if(item == NULL) return 0;
+    char *real_item = (char*)item;
+    int sum = 0;
+    for(int i = 0; i < strlen(real_item); i++) {
+        sum += real_item[i];
+    }
+    return sum;
+}
+
+static void test_locate(void **state) {
+    set_t *uut = *state;
+    uut->compare = bad_hash_fn;
+    for(int i = 0; i < 6; i++)  {
+        set_add(uut, items[i]);
+    }
+    set_add(uut, NULL);
+    assert_true(set_contains(uut, NULL));
+    assert_false(set_contains(uut, "ef"));
+}
+
+int main(int argc, char **argv) {
+    const struct CMUnitTest tests[] = {
+        cmocka_unit_test_setup_teardown(
+            test_add,
+            set_init,
+            set_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_remove,
+            set_init,
+            set_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_resize,
+            set_init,
+            set_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_iterator,
+            set_init,
+            set_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_invalid_calls,
+            set_init,
+            set_finish
+        ),
+        cmocka_unit_test_setup_teardown(
+            test_locate,
+            set_init,
+            set_finish
+        )
+    };
+    return cmocka_run_group_tests(tests, NULL, NULL);
 }

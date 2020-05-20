@@ -7,8 +7,8 @@
 #include <string.h>
 
 // Private state and types
-#define value_at(self, idx) ((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
-#define key_at(self, idx) ((char*)dynabuf_fetch(self->map, idx))
+#define value_at(self, idx) (void**)((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
+#define key_at(self, idx) (void**)((char*)dynabuf_fetch(self->map, idx))
 #define filter_size_constraint(x) ((x > 8) ? (x >> 3):1)
 
 
@@ -70,33 +70,40 @@ hashmap_status hashmap_set(hashmap_t *self, void *key, void *value)    {
     hashmap_status status;
     uint32_t    hash;
     uint32_t    index;
-    uint32_t    start_index = 0;
+    /*
+     *uint32_t    start_index = 0;
+     */
     switch((status = check_space_available(self, 1)))   {
         case SUCCESS:
             hash        = self->hash(key);
             index       = hash % self->capacity;
-            start_index = index;
+            /*
+             *start_index = index;
+             */
             // index guaranteed in range
             // scan for next open entry
             while(bitmap_contains(self->_filter, index))    {
-                if(key_at(self, index) != NULL &&
+                if(key_at(self, index) != NULL && key != NULL &&
                         self->compare(key,
                         key_at(self, index)) == 0) {
                     DBG_LOG("got repeat key case\n");
                     goto repeat_key; // zoinks
                 }
                 index = (index + 1) % self->capacity;
-                if(index == start_index)    {
-                    DBG_LOG("hashmap resize on key at:%p"
-                            " was unexpected.  Corruption likely.\n", key);
-                    status = rehash(self, 2*self->capacity + 1);
-                    if(status != SUCCESS) {
-                        DBG_LOG("Could not rehash on insert\n");
-                        self->status = status;
-                        return status;
-                    }
-                    return hashmap_set(self, key, value);
-                }
+                // space was available, this is impossible
+                /*
+                 *if(index == start_index)    {
+                 *    DBG_LOG("hashmap resize on key at:%p"
+                 *            " was unexpected.  Corruption likely.\n", key);
+                 *    status = rehash(self, 2*self->capacity + 1);
+                 *    if(status != SUCCESS) {
+                 *        DBG_LOG("Could not rehash on insert\n");
+                 *        self->status = status;
+                 *        return status;
+                 *    }
+                 *    return hashmap_set(self, key, value);
+                 *}
+                 */
             }
             self->entries++;
             int next = 0;
@@ -117,40 +124,56 @@ repeat_key:
             return hashmap_set(self, key, value);
         break;
 
+        case NULL_ARG:
+            DBG_LOG("hashmap was invalid on set operation.\n");
+            goto invalid_self;
         default:
             DBG_LOG("check_valid returned invalid status: %d\n", status);
+            goto done;
         break;
     }
 
     if(self->load(self->entries, self->capacity) != 0) {
         status = hashmap_resize(self, 2*self->capacity + 1);
     }
+done:
     self->status = status;
+invalid_self:
     return status;
 }
 
 
 void **hashmap_fetch(hashmap_t *self, void *key) {
-    hashmap_status  status;
-    int             key_index;
+    hashmap_status status;
+    int key_index;
+    void **value = NULL;
     switch((status = check_valid(self)))    {
         case SUCCESS:
             key_index = hashmap_locate(self, key);
             if(key_index != -1) {
-                self->status = SUCCESS;
-                return value_at(self, key_index);
+                status = SUCCESS;
+                value = value_at(self, key_index);
             }
             else    {
-                self->status = IDX_OOB; //fixme
-                return NULL;
+                status = IDX_OOB; //fixme
             }
+            goto done;
+        break;
+
+        case NULL_ARG:
+            DBG_LOG("hashmap was invalid on fetch operation.\n");
+            goto invalid_self;
         break;
 
         default:
             DBG_LOG("check_valid returned invalid status: %d\n", status);
-            self->status = status;
-            return NULL;
+            goto done;
+        break;
     }
+done:
+    self->status = status;
+invalid_self:
+    return value;
 }
 
 
@@ -178,10 +201,18 @@ void **hashmap_remove(hashmap_t *self, void *key)  {
 }
 
 int hashmap_resize(hashmap_t *self, int count) {
-    int status = SUCCESS;
-    if(check_valid(self) != SUCCESS) {
-        status = NULL_IMPL;
-        goto finish;
+    int status;
+    switch((status = check_valid(self))) {
+        case NULL_ARG:
+            goto invalid_self;
+        break;
+        
+        case SUCCESS:
+        break;
+
+        default:
+            goto finish;
+        break;
     }
 
     if(count > self->entries) {
@@ -200,8 +231,10 @@ int hashmap_resize(hashmap_t *self, int count) {
 
 finish:
     self->status = status;
+invalid_self:
     return status;
 }
+
 uint32_t hashmap_size(hashmap_t *self)   {
     hashmap_status status;
     switch((status = check_valid(self)))   {
@@ -211,7 +244,6 @@ uint32_t hashmap_size(hashmap_t *self)   {
         break;
         default:
             DBG_LOG("Invalid status returned from check_valid: %d\n", status);
-            self->status = status;
             return -1;
     }
 }
@@ -256,6 +288,7 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
         
         is_valid = bitmap_contains(self->_filter, index) != 0;
         if(is_valid) {
+            // dynabuf pointers are guaranteed valid
             null_check  = *(void**)dynabuf_fetch(self->map, index) == NULL;
             null_check  |= ((key == NULL) << 1);
             switch(null_check) {
@@ -330,22 +363,27 @@ static hashmap_status rehash(hashmap_t *self, int count)   {
         }
         uint32_t hash   = self->hash(key_at(self, i));
         uint32_t index  = hash % count;
-        uint32_t start_index = index;
+        /*
+         *uint32_t start_index = index;
+         */
         // scan for next open entry
         // the condition here is the same as kv_valid, but as we do not have
         // a valid 'self' for this entry, we have to re-write it here
         // FIXME this should not be the case.
         while(bitmap_contains(scratch_filter, index))  {
             index = (index + 1) % self->capacity;
-            if(index == start_index)    {
-                DBG_LOG("Could not find a suitable location "
-                " to insert hash: %d and new size: %d\n",
-                hash, count);
-                dynabuf_free(scratch_map);
-                bitmap_free(scratch_filter);
-                status = NO_MEM;
-                goto finish;
-            }
+            // space was allocated for enough keys, this should be impossible.
+            /*
+             *if(index == start_index)    {
+             *    DBG_LOG("Could not find a suitable location "
+             *    " to insert hash: %d and new size: %d\n",
+             *    hash, count);
+             *    dynabuf_free(scratch_map);
+             *    bitmap_free(scratch_filter);
+             *    status = NO_MEM;
+             *    goto finish;
+             *}
+             */
         }
         dynabuf_set(scratch_map, index, dynabuf_fetch(self->map, i));
         /*
@@ -371,25 +409,30 @@ hashmap_status check_valid(hashmap_t *self)    {
     if(self->map == NULL) {
         return NULL_BUF;
     }
+    if(self->compare == NULL) {
+        return NULL_IMPL; // FIXME: we don't have an error code for this!
+    }
     if(self->hash == NULL)     {
         return NULL_HASH;
     }
     if(self->load == NULL) {
         return NULL_LOAD;
     }
+    if(self->_filter == NULL) {
+        return NULL_IMPL; // FIXME: we don't have an error code for this!
+    }
     return SUCCESS;
 }
 
 hashmap_status check_space_available(hashmap_t *self, int size)  {
     hashmap_status status;
-    switch((status = check_valid(self))) {
-        case SUCCESS:
-            return ((self->entries + size) <= self->capacity) ? SUCCESS:NO_MEM;
-        break;
-        default:
-            DBG_LOG("Invalid status returned from check_valid: %d\n", status);
-            return status;
+    if((status = check_valid(self)) == SUCCESS) {
+        status = ((self->entries + size) <= self->capacity) ? SUCCESS:NO_MEM;
     }
+    else {
+        DBG_LOG("Invalid status returned from check_valid: %d\n", status);
+    }
+    return status;
 }
 
 

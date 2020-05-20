@@ -149,13 +149,35 @@ dep_set_iter = declare_dependency(
 )
 
 # unit test targets
-ext_criterion       = dependency('criterion', required: false)
-if ext_criterion.found()
+ext_cmocka       = dependency('cmocka', required: false)
+if ext_cmocka.found()
+    exe_dynabuf_test = executable(
+      'dynabuftest', 'tests/test_dynabuf.c',
+      include_directories: includes,
+      link_with: [sl_dynabuf],
+      dependencies: ext_cmocka
+    )
+
     exe_array_test = executable(
         'arraytest', 'tests/test_array.c',
         include_directories: includes,
-        link_with: [sl_array, sl_iterator, sl_array_iter],
-        dependencies: ext_criterion
+        link_with: [sl_dynabuf, sl_array, sl_iterator, sl_array_iter],
+        dependencies: ext_cmocka
+    )
+
+    exe_bitmap_test = executable(
+        'bitmaptest', 'tests/test_bitmap.c',
+        include_directories: includes,
+        link_with: sl_bitmap, dependencies: ext_cmocka
+    )
+
+    exe_set_test = executable(
+        'settest', 'tests/test_set.c',
+        link_with: [
+            sl_set, sl_hashmap_defaults, sl_iterator, sl_set_iter
+        ],
+        include_directories: includes,
+        dependencies: ext_cmocka
     )
 
     exe_hashmap_test = executable(
@@ -165,31 +187,17 @@ if ext_criterion.found()
             [
                 sl_hashmap, sl_hashmap_defaults,
                 sl_iterator, sl_hashmap_iter, 
-                sl_bitmap
+                sl_bitmap, sl_dynabuf, sl_bitmap
             ],
-        dependencies: ext_criterion
-    )
-
-    exe_bitmap_test = executable(
-        'bitmaptest', 'tests/test_bitmap.c',
-        include_directories: includes,
-        link_with: sl_bitmap, dependencies: ext_criterion
-    )
-
-    exe_set_test = executable(
-        'settest', 'tests/test_set.c',
-        link_with: [
-            sl_set, sl_hashmap_defaults, sl_iterator, sl_set_iter
-        ],
-        include_directories: includes,
-        dependencies: ext_criterion
+        dependencies: ext_cmocka
     )
 
     # test run targets
+    test('dynabuf_test', exe_dynabuf_test)
     test('array_test', exe_array_test, args: '-j1')
-    test('hash_test', exe_hashmap_test, args: '-j1')
-    test('bitmap_test', exe_bitmap_test, args: '-j1')
-    test('set_test', exe_set_test, args: '-j1')
+    test('bitmap_test', exe_bitmap_test)
+    test('set_test', exe_set_test)
+    test('hash_test', exe_hashmap_test)
 endif
 
 # installation config
