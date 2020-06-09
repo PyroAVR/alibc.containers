@@ -19,6 +19,18 @@ if get_option('install_headers') == 'not_subproject'
 else
     should_install_headers = (get_option('install_headers') == 'yes')
 endif
+# ========= END INSTALLATION CONTROL =========
+
+# ========= BUILDING CONTROL =========
+# Build tests?
+should_build_tests = false
+if get_option('build_tests') == 'yes'
+    should_build_tests = true
+elif get_option('build_tests') == 'not_subproject'
+    should_build_tests = not meson.is_subproject()
+endif
+# ========= END BUILDING CONTROL =========
+
 
 # project constants
 _HEADERS = [
@@ -171,7 +183,7 @@ dep_set_iter = declare_dependency(
 
 # ========= UNIT TEST BUILD TARGETS =========
 ext_cmocka       = dependency('cmocka', required: false)
-if ext_cmocka.found()
+if ext_cmocka.found() and should_build_tests
     exe_dynabuf_test = executable(
       'dynabuftest', 'tests/test_dynabuf.c',
       include_directories: includes,

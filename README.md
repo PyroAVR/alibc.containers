@@ -21,17 +21,25 @@ Installation is disabled when `alibc.containers` is used as a Meson subproject.
 If you want to install anyway, this setting is overridden by running:
 
 ```
-cd <builddir>
-meson configure -D<subproject_dir_name>:install_libs=yes
-meson configure -D<subproject_dir_name>:install_headers=yes
+$ cd <builddir>
+$ meson configure -D<subproject_dir_name>:install_libs=yes
+$ meson configure -D<subproject_dir_name>:install_headers=yes
 ```
 
 ## Testing
-Test targets are enabled by default.
+Test targets are enabled by default, but are disabled for convenience when
+`alibc.containers` is used in a subproject. To force building/not building the
+test suite:
+
+```
+$ cd <builddir>
+$ meson configure -D<subproject_dir_name>:build_tests=yes/no
+```
+
 After building, running the tests is as simple as:
 
 ```
-ninja -C <builddir> test
+$ ninja -C <builddir> test
 ```
 
 
@@ -42,9 +50,9 @@ be tested using the standard meson methods.  As an introduction for the
 unititiated, the sequence is:
 
 ```bash
-meson <builddir>
-cd <builddir>
-meson configure -Db_coverage=true
-ninja test # this is just to make sure the tests run.
-ninja coverage
+$ meson <builddir>
+$ cd <builddir>
+$ meson configure -Db_coverage=true
+$ ninja test # this is just to make sure the tests run.
+$ ninja coverage
 ```
