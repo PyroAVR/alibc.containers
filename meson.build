@@ -1,6 +1,25 @@
 # global project def
 project('alibc.extensions', 'c')
 
+cc = meson.get_compiler('c')
+
+# ========= INSTALLATION CONTROL =========
+# Install compiled libraries?
+should_install_libs = false
+if get_option('install_libs') == 'not_subproject'
+    should_install_libs = not meson.is_subproject()
+else
+    should_install_libs = (get_option('install_libs') == 'yes')
+endif
+
+# Install headers?
+should_install_headers = false
+if get_option('install_headers') == 'not_subproject'
+    should_install_headers = not meson.is_subproject()
+else
+    should_install_headers = (get_option('install_headers') == 'yes')
+endif
+
 # project constants
 _HEADERS = [
     'include/alibc/extensions/errors.h',
@@ -28,76 +47,77 @@ endif
 includes    = include_directories('include')
 
 
-# shared libraries
+# ========= LIBRARY BUILD TARGETS =========
 sl_dynabuf = library(
     'alc_dynabuf', 'lib/dynabuf.c',
     include_directories: includes,
-    install: true
+    install: should_install_libs
 )
 
 sl_array = library(
     'alc_array', 'lib/array.c',
     include_directories: includes,
     link_with: sl_dynabuf,
-    install: true
+    install: should_install_libs
 )
 
 sl_bitmap = library(
     'alc_bitmap', 'lib/bitmap.c',
     include_directories: includes,
     link_with: sl_dynabuf,
-    install: true
+    install: should_install_libs
 )
 
 sl_hashmap = library(
     'alc_hashmap', 'lib/hashmap.c',
     include_directories: includes,
     link_with: [sl_dynabuf, sl_bitmap],
-    install: true
+    install: should_install_libs
 )
 
 sl_hashmap_defaults = library(
     'alc_hashmap_defaults',
     'lib/hashmap_defaults.c',
     include_directories: includes,
-    install: true
+    install: should_install_libs
 )
 
 sl_set = library(
     'alc_set', 'lib/set.c',
     include_directories: includes,
     link_with: [sl_bitmap, sl_dynabuf],
-    install: true
+    install: should_install_libs
 )
 
 sl_iterator = library(
     'alc_iter', 'lib/iterator.c',
     include_directories: includes,
-    install: true
+    install: should_install_libs
 )
 
 sl_array_iter = library(
     'alc_array_iter', 'lib/array_iterator.c',
     include_directories: includes,
     link_with: [sl_iterator, sl_array],
-    install: true
+    install: should_install_libs
 )
 
 sl_hashmap_iter = library(
     'alc_hashmap_iter', 'lib/hashmap_iterator.c',
     include_directories: includes,
     link_with: [sl_iterator, sl_hashmap, sl_bitmap, sl_dynabuf],
-    install: true
+    install: should_install_libs
 )
 
 sl_set_iter = library(
     'alc_set_iter', 'lib/set_iterator.c',
     include_directories: includes,
     link_with: [sl_iterator, sl_set, sl_bitmap, sl_dynabuf],
-    install: true
+    install: should_install_libs
 )
+# ========= END LIBRARY BUILD TARGETS =========
 
-# external dependency creation, for subproject builds with Meson
+# ========= DEPENDENCY OBJECTS FOR SUPERPROJECT BUILDS =========
 dep_dynabuf = declare_dependency(
     include_directories: includes,
     link_with: sl_dynabuf
@@ -147,8 +167,9 @@ dep_set_iter = declare_dependency(
     include_directories: includes,
     link_with: [sl_iterator, sl_set, sl_bitmap, sl_set_iter, sl_dynabuf]
 )
+# ========= END DEPENDENCY OBJECTS FOR SUPERPROJECT BUILDS =========
 
-# unit test targets
+# ========= UNIT TEST BUILD TARGETS =========
 ext_cmocka       = dependency('cmocka', required: false)
 if ext_cmocka.found()
     exe_dynabuf_test = executable(
@@ -199,8 +220,13 @@ if ext_cmocka.found()
     test('set_test', exe_set_test)
     test('hash_test', exe_hashmap_test)
 endif
+# ========= END UNIT TEST BUILD TARGETS =========
 
-# installation config
-
-# headers
-install_headers(_HEADERS, subdir: 'alibc/extensions')
+# ========= HEADER INSTALLATION CONFIG =========
+if should_install_headers
+    install_subdir(
+        get_option('includedir'),
+        strip_directory: true,
+        install_dir: join_paths(get_option('prefix'), 'include')
+    )
+endif

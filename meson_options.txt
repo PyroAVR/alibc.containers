@@ -1,0 +1,2 @@
+option('install_libs', type: 'combo', choices: ['yes', 'no', 'not_subproject'], value: 'not_subproject')
+option('install_headers', type: 'combo', choices: ['yes', 'no', 'not_subproject'], value: 'not_subproject')
