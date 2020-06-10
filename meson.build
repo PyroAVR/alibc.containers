@@ -1,8 +1,6 @@
 # global project def
 project('alibc.extensions', 'c')
 
-cc = meson.get_compiler('c')
-
 # ========= INSTALLATION CONTROL =========
 # Install compiled libraries?
 should_install_libs = false
@@ -31,33 +29,19 @@ elif get_option('build_tests') == 'not_subproject'
 endif
 # ========= END BUILDING CONTROL =========
 
+# ========= PROJECT VARIABLES =========
+# Properties of the C compiler
+cc = meson.get_compiler('c')
 
-# project constants
-_HEADERS = [
-    'include/alibc/extensions/errors.h',
-    'include/alibc/extensions/debug.h',
-    'include/alibc/extensions/dynabuf.h',
-    'include/alibc/extensions/array.h',
-    'include/alibc/extensions/hashmap.h',
-    'include/alibc/extensions/set.h',
-    'include/alibc/extensions/bitmap.h',
-    'include/alibc/extensions/debug.h',
-    'include/alibc/extensions/iterator.h',
-    'include/alibc/extensions/set_iterator.h',
-    'include/alibc/extensions/hashmap_iterator.h',
-    'include/alibc/extensions/array_iterator.h'
-]
-
-
-# project setup
 if get_option('buildtype') == 'debug'
-    # make a debug build target!
-    add_project_arguments('-DDEBUG=1 -ggdb3', language: 'c')
+    # enable alibc debug functions and debugging symbols.
+    add_project_arguments('-DDEBUG=1',  '-ggdb3', language: 'c')
 endif
 
 # headers
 includes    = include_directories('include')
 
+# ========= END PROJECT VARIABLES =========
 
 # ========= LIBRARY BUILD TARGETS =========
 sl_dynabuf = library(

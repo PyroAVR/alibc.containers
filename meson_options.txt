@@ -1,3 +1,21 @@
-option('install_libs', type: 'combo', choices: ['yes', 'no', 'not_subproject'], value: 'not_subproject')
-option('install_headers', type: 'combo', choices: ['yes', 'no', 'not_subproject'], value: 'not_subproject')
-option('build_tests', type: 'combo', choices: ['yes', 'no', 'not_subproject'], value: 'not_subproject')
+option(
+    'install_libs',
+    type: 'combo',
+    choices: ['yes', 'no', 'not_subproject'],
+    value: 'not_subproject',
+    description: 'Controls installation of shared or static libraries'
+)
+option(
+    'install_headers',
+    type: 'combo',
+    choices: ['yes', 'no', 'not_subproject'],
+    value: 'not_subproject',
+    description: 'Controls installation of C header files'
+)
+option(
+    'build_tests',
+    type: 'combo',
+    choices: ['yes', 'no', 'not_subproject'],
+    value: 'not_subproject',
+    description: 'Controls whether test targets should be built'
+)

@@ -42,8 +42,6 @@ After building, running the tests is as simple as:
 $ ninja -C <builddir> test
 ```
 
-
-
 ## Code Coverage
 Meson provides automatic code coverage for test targets, so alibc.containers can
 be tested using the standard meson methods.  As an introduction for the
@@ -56,3 +54,18 @@ $ meson configure -Db_coverage=true
 $ ninja test # this is just to make sure the tests run.
 $ ninja coverage
 ```
+
+## Build Options
+Build options are controlled by Meson.  All the Meson built-in options work as
+expected.  `alibc.containers` also adds custom options in `meson_options.txt`.
+To view their summaries, run
+
+```
+$ cd <builddir>
+$ meson configure
+```
+
+`alibc.containers` uses a "sane defaults" scheme which can be summarized as:
+"Assume development work is being done unless a subproject build is performed."
+Release builds are controlled via Meson, and will automatically disable debug
+messages and increase compiler optimization.
