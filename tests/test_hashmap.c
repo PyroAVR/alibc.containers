@@ -45,7 +45,7 @@ static void test_set_get(void **state) {
     // check that null key returns null
     uint64_t result = (uint64_t)hashmap_fetch(uut, (void*)0);
     assert_null(result);
-    assert_int_equal(hashmap_okay(uut), IDX_OOB);
+    assert_int_equal(hashmap_okay(uut), ALC_HASHMAP_NOTFOUND);
 
     // check that an unmapped key returns null
     result = (uint64_t)hashmap_fetch(uut, "two twenty one");
@@ -93,13 +93,13 @@ static void test_resize(void **state) {
     }
     result = hashmap_resize(uut, 5);
     assert_int_equal(result, hashmap_okay(uut));
-    assert_int_equal(result, IDX_OOB);
+    assert_int_equal(result, ALC_HASHMAP_INVALID_REQ);
 
     result = hashmap_resize(uut, hashmap_size(uut));
-    assert_int_equal(result, SUCCESS);
+    assert_int_equal(result, ALC_HASHMAP_SUCCESS);
 
     result = hashmap_resize(uut, 50);
-    assert_int_equal(result, SUCCESS);
+    assert_int_equal(result, ALC_HASHMAP_SUCCESS);
 }
 
 static void test_size(void **state) {
@@ -170,10 +170,10 @@ static void test_iter_values(void **state) {
 static void test_invalid_calls(void **state) {
     // test all check_valid/check_space_available calls with NULL self
     int r = hashmap_set(NULL, "key", 0);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_HASHMAP_FAILURE);
 
     r = hashmap_resize(NULL, 0);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_HASHMAP_FAILURE);
 
     r = hashmap_remove(NULL, "key");
     assert_null(r);
@@ -189,27 +189,27 @@ static void test_invalid_calls(void **state) {
     bitmap_free(uut->_filter);
     uut->_filter = NULL;
     r = hashmap_set(uut, "key", 0);
-    assert_int_equal(r, NULL_IMPL);
+    assert_int_equal(r, ALC_HASHMAP_INVALID);
     // test load
     uut->load = NULL;
     r = hashmap_set(uut, "key", 0);
-    assert_int_equal(r, NULL_LOAD);
+    assert_int_equal(r, ALC_HASHMAP_INVALID);
 
     // test hash
     uut->hash = NULL;
     r = hashmap_set(uut, "key", 0);
-    assert_int_equal(r, NULL_HASH);
+    assert_int_equal(r, ALC_HASHMAP_INVALID);
 
     // test compare
     uut->compare = NULL;
     r = hashmap_set(uut, "key", 0);
-    assert_int_equal(r, NULL_IMPL);
+    assert_int_equal(r, ALC_HASHMAP_INVALID);
 
     // test buf
     dynabuf_free(uut->map);
     uut->map = NULL;
     r = hashmap_set(uut, "key", 0);
-    assert_int_equal(r, NULL_BUF);
+    assert_int_equal(r, ALC_HASHMAP_INVALID);
 }
 
 int main(int argc, char **argv) {

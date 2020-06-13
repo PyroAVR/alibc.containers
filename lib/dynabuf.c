@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static dynabuf_status check_valid(dynabuf_t*);
+static int check_valid(dynabuf_t*);
 
 
 // SIZE IN BYTES
@@ -28,39 +28,35 @@ dynabuf_t *create_dynabuf(int size, int unit) {
 
 
 // SIZE IN ELEMENTS
-dynabuf_status dynabuf_resize(dynabuf_t *target, int size) {
-    int status = SUCCESS;
+int dynabuf_resize(dynabuf_t *target, int size) {
+    int status = check_valid(target);
     char *newbuf = NULL;
-    switch((status = check_valid(target)))   {
-        case SUCCESS:
-            newbuf  = realloc(target->buf, size*target->elem_size);
-            if(newbuf == NULL)  {
-                DBG_LOG("Could not realloc buffer\n");
-                status = NO_MEM;
-                goto done;
-            }
-            if(newbuf != target->buf)    {
-                DBG_LOG("realloc moved target->buf, was: %p, is:%p\n",
-                        target->buf, newbuf);
-                target->buf = newbuf;
-            }
-            target->capacity = size*target->elem_size;
-            goto done;
-
-        break;
-        default:
-            DBG_LOG("Target was not valid: %d\n", status);
-            goto done;
-        break;
+    if(status != ALC_DYNABUF_SUCCESS) {
+        DBG_LOG("Target was not valid: %d\n", status);
+        goto done;
     }
+
+    newbuf  = realloc(target->buf, size*target->elem_size);
+    if(newbuf == NULL)  {
+        DBG_LOG("Could not realloc buffer\n");
+        status = ALC_DYNABUF_NO_MEM;
+        goto done;
+    }
+    if(newbuf != target->buf)    {
+        DBG_LOG("realloc moved target->buf, was: %p, is:%p\n",
+                target->buf, newbuf);
+        target->buf = newbuf;
+    }
+    target->capacity = size*target->elem_size;
+
 done:
     return status;
 }
 
 
 int dynabuf_set(dynabuf_t *target, int which, void *element) {
-    int status = SUCCESS;
-    if((status = check_valid(target)) != SUCCESS) {
+    int status = check_valid(target);
+    if(status != ALC_DYNABUF_SUCCESS) {
         goto done;
     }
     if(target->elem_size > sizeof(void*)) {
@@ -85,7 +81,7 @@ done:
 int dynabuf_set_seq(dynabuf_t *target, int which, int next,
         void *value, int size) {
     int next_idx = 0;
-    if(check_valid(target) != SUCCESS) {
+    if(check_valid(target) != ALC_DYNABUF_SUCCESS) {
         next_idx = -1;
         goto done;
     }
@@ -116,7 +112,7 @@ done:
 
 void **dynabuf_fetch(dynabuf_t *target, int which) {
     void **r = NULL;
-    if(check_valid(target) != SUCCESS) {
+    if(check_valid(target) != ALC_DYNABUF_SUCCESS) {
         goto done;
     }
     r = target->buf + (which * target->elem_size);
@@ -139,15 +135,20 @@ void dynabuf_free(dynabuf_t *target)    {
 }
 
 
-static dynabuf_status check_valid(dynabuf_t *self)  {
+static int check_valid(dynabuf_t *self)  {
+    int status = ALC_DYNABUF_SUCCESS;
     if(self == NULL)    {
-        return ARG_INVAL;
+        status = ALC_DYNABUF_INVALID;
+        goto done;
     }
     if(self->buf == NULL)   {
-        return NULL_BUF;
+        status = ALC_DYNABUF_INVALID;
+        goto done;
     }
     if(self->capacity == 0)  {
-        return NO_MEM;
+        status = ALC_DYNABUF_NO_MEM;
+        goto done;
     }
-    return SUCCESS;
+done:
+    return status;
 }

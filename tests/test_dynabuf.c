@@ -93,7 +93,7 @@ static void test_set_seq_big(void **state) {
 static void test_invalid_calls(void **state) {
     int r = dynabuf_set(NULL, 0, 1);
     // test the check_valid line for every function
-    assert_int_equal(r, ARG_INVAL);
+    assert_int_equal(r, ALC_DYNABUF_INVALID);
 
     r = dynabuf_fetch(NULL, 0);
     assert_int_equal(r, NULL); // special case here
@@ -102,20 +102,20 @@ static void test_invalid_calls(void **state) {
     assert_int_equal(r, -1); // special case for set_seq
 
     r = dynabuf_resize(NULL, 0);
-    assert_int_equal(r, ARG_INVAL);
+    assert_int_equal(r, ALC_DYNABUF_INVALID);
 
     // test NO_MEM in check_valid
     dynabuf_t *uut = *state;
     uut-> capacity = 0;
     r = dynabuf_set(uut, 0, 1);
-    assert_int_equal(r, NO_MEM);
+    assert_int_equal(r, ALC_DYNABUF_NO_MEM);
 
     // test NULL_BUF in check_valid
     free(uut->buf);
     uut->buf = NULL;
 
     r = dynabuf_set(uut, 0, 1);
-    assert_int_equal(r, NULL_BUF);
+    assert_int_equal(r, ALC_DYNABUF_INVALID);
 
     // destructor to test null target in dynabuf_free
     free(uut);

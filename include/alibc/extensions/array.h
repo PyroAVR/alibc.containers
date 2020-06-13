@@ -1,5 +1,6 @@
 #pragma once
 #include <stdint.h>
+#include <limits.h>
 #include "dynabuf.h"
 /**
  * alibc/extensions array interface
@@ -24,11 +25,16 @@ typedef struct  {
     uint32_t    status;
 } array_t;
 
-/*
- * array status indication - compliant with alibc/extensions standard errors
+/**
+ * Error codes for array operations
  */
-// FIXME
-typedef alibc_internal_errors array_status;
+typedef enum {
+    ALC_ARRAY_SUCCESS = 0,
+    ALC_ARRAY_IDX_OOB = INT_MIN,
+    ALC_ARRAY_INVALID,
+    ALC_ARRAY_NO_MEM,
+    ALC_ARRAY_FAILURE
+} array_error_t;
 
 /*
  * Constructor function for array type
@@ -43,17 +49,17 @@ array_t *create_array(uint32_t size, uint32_t unit);
  * @param self array to insert into
  * @param where the location at which to insert
  * @param item the object to store
- * @return insert status
+ * @return ALC_ARRAY_* error code
  */
-array_status array_insert(array_t *self, int where, void* item);
+int array_insert(array_t *self, int where, void* item);
 
 /*
  * Append a new value to the end of the array
  * @param self the array to append to
  * @param item the item to append
- * @return append status
+ * @return ALC_ARRAY_* error code
  */
-array_status array_append(array_t *self, void* item);
+int array_append(array_t *self, void* item);
 
 /*
  * Insert a new value into the array without swapping, thus overwriting
@@ -61,9 +67,9 @@ array_status array_append(array_t *self, void* item);
  * @param self the array to insert into
  * @param where the index to which item shall be written
  * @param item the value to store at the specified index.
- * @return insert status
+ * @return ALC_ARRAY_* error code
  */
-array_status array_insert_unsafe(array_t *self, int where, void *item);
+int array_insert_unsafe(array_t *self, int where, void *item);
 
 /*
  * Retrieve an item from the array
@@ -79,7 +85,7 @@ void **array_fetch(array_t *self, int which);
  * considered an error.
  * @param self the array to use
  * @param count the number of items which should be able to fit in the array.
- * @return array_status_code
+ * @return ALC_ARRAY_* error code
  */
 int array_resize(array_t *self, int count);
 
@@ -96,9 +102,9 @@ void **array_remove(array_t *self, int which);
  * @param self the array to adjust
  * @param first the index of the first object to swap
  * @param second the index of the second object to swap
- * @return status of the swap
+ * @return ALC_ARRAY_* error code
  */
-array_status array_swap(array_t *self, int first, int second);
+int array_swap(array_t *self, int first, int second);
 
 /*
  * Compute the size of the array, in entries.  The size in bytes is
@@ -118,6 +124,6 @@ void array_free(array_t *self);
 /*
  * Ascertain the status of the previous operation
  * @param self the array to validate
- * @return the alibc/extensions error code, zero if successful.
+ * @return ALC_ARRAY_* error code corresponding to the most recent operation
  */
 int array_okay(array_t *self);

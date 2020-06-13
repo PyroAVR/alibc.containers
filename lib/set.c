@@ -49,14 +49,14 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
     }
 
     r->compare  = comparefn;
-    r->status   = SET_SUCCESS;
+    r->status   = ALC_SET_SUCCESS;
 finish:
     return r;
 }
 
 static int rehash(set_t *self, int count) {
-    int status = SET_INVALID;
-    if(check_valid(self) != SET_SUCCESS) {
+    int status = ALC_SET_INVALID;
+    if(check_valid(self) != ALC_SET_SUCCESS) {
         goto finish;
     }
 
@@ -67,7 +67,7 @@ static int rehash(set_t *self, int count) {
     if(scratch_buf == NULL) {
         DBG_LOG("Could not create new backing array with size %d\n",
                 self->capacity);
-        status = SET_NO_MEM;
+        status = ALC_SET_NO_MEM;
         goto finish;
     }
     scratch_filter  = create_bitmap(count);
@@ -75,7 +75,7 @@ static int rehash(set_t *self, int count) {
         DBG_LOG("Could not create new bitmap with size %d\n",
                 self->capacity);
         bitmap_free(scratch_filter);
-        status = SET_NO_MEM;
+        status = ALC_SET_NO_MEM;
         goto finish;
     }
 
@@ -102,8 +102,8 @@ static int rehash(set_t *self, int count) {
              *            "%d and new size: %d\n", hash, count);
              *    dynabuf_free(scratch_buf);
              *    bitmap_free(scratch_filter);
-             *    self->status = SET_NO_MEM;
-             *    status = SET_NO_MEM;
+             *    self->status = ALC_SET_NO_MEM;
+             *    status = ALC_SET_NO_MEM;
              *    goto finish;
              *}
              */
@@ -120,29 +120,29 @@ static int rehash(set_t *self, int count) {
     self->buf       = scratch_buf;
     self->_filter   = scratch_filter;
     self->capacity  = count;
-    self->status    = SET_SUCCESS;
-    status = SUCCESS;
+    self->status    = ALC_SET_SUCCESS;
+    status = ALC_SET_SUCCESS;
 finish:
     return status;
 }
 
 int set_add(set_t *self, void *item) {
-    int status = SET_INVALID; 
+    int status = ALC_SET_INVALID; 
     switch(check_space_available(self, 1)) {
-        case SET_INVALID:
+        case ALC_SET_INVALID:
             goto invalid_self;
         break;
 
-        case SET_NO_MEM:
+        case ALC_SET_NO_MEM:
             DBG_LOG("Set was resized for item %p\n", item);
-            if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
+            if(rehash(self, (self->capacity * 2) + 1) == ALC_SET_SUCCESS) {
                 status = set_add(self, item);
                 goto finish;
             }
             else {
                 DBG_LOG("could not resize set on add, no mem available.\n");
-                self->status = SET_NO_MEM;
-                status = SET_NO_MEM;
+                self->status = ALC_SET_NO_MEM;
+                status = ALC_SET_NO_MEM;
                 goto finish;
             }
         break;
@@ -170,14 +170,14 @@ int set_add(set_t *self, void *item) {
         // this case should be impossible to reach given the above.
         /*
          *if(index == start_index) {
-         *    if(rehash(self, (self->capacity * 2) + 1) == SET_SUCCESS) {
+         *    if(rehash(self, (self->capacity * 2) + 1) == ALC_SET_SUCCESS) {
          *        status = set_add(self, item);
          *        goto finish;
          *    }
          *    else {
          *        DBG_LOG("could not resize set on add, but space was reported "
          *                "available, structure corruption is likely.\n");
-         *        status = SET_NO_MEM;
+         *        status = ALC_SET_NO_MEM;
          *        goto finish;
          *    }
          *}
@@ -192,7 +192,7 @@ repeat_item:
      *self->buf->buf[index] = item;
      */
 
-    status = SET_SUCCESS;
+    status = ALC_SET_SUCCESS;
     if(self->load(self->entries, self->capacity) == true) {
         status = set_resize(self, 2*self->capacity + 1);
     }
@@ -205,7 +205,7 @@ invalid_self:
 
 void **set_remove(set_t *self, void *item) {
     void **r = NULL;
-    if(check_valid(self) != SET_SUCCESS) {
+    if(check_valid(self) != ALC_SET_SUCCESS) {
         goto finish;
     }
 
@@ -214,11 +214,11 @@ void **set_remove(set_t *self, void *item) {
     if(index != -1) {
         bitmap_remove(self->_filter, index);
         self->entries--;
-        self->status = SET_SUCCESS;
+        self->status = ALC_SET_SUCCESS;
         r = dynabuf_fetch(self->buf, index);
     }
     else {
-        self->status = SET_NOTFOUND;
+        self->status = ALC_SET_NOTFOUND;
         r = NULL;
     }
 finish:
@@ -226,24 +226,24 @@ finish:
 }
 
 int set_resize(set_t *self, int count) {
-    int status = SET_SUCCESS;
-    if(check_valid(self) != SET_SUCCESS) {
-        status = SET_INVALID;
+    int status = ALC_SET_SUCCESS;
+    if(check_valid(self) != ALC_SET_SUCCESS) {
+        status = ALC_SET_INVALID;
         goto finish_nostat;
     }
 
     if(count > self->entries) {
         status = rehash(self, count);
-        if(status != SET_SUCCESS) {
+        if(status != ALC_SET_SUCCESS) {
             DBG_LOG("Could not rehash to new size %d\n", count);
-            status = SET_NO_MEM;
+            status = ALC_SET_NO_MEM;
             goto finish;
 
         }
     }
     else if(count < self->entries) {
         DBG_LOG("Requested count %d was too small.\n", count);
-        status = SET_INVALID_REQ;
+        status = ALC_SET_INVALID_REQ;
         goto finish;
     }
 
@@ -254,17 +254,17 @@ finish_nostat:
 }
 int set_contains(set_t *self, void *item) {
     int r = 0;
-    if(check_valid(self) != SET_SUCCESS) {
+    if(check_valid(self) != ALC_SET_SUCCESS) {
         goto finish;
     }
 
     int index = set_locate(self, item);
     if(index != -1) {
-        self->status = SET_SUCCESS;
+        self->status = ALC_SET_SUCCESS;
         r = 1;
     }
     else {
-        self->status = SET_NOTFOUND;
+        self->status = ALC_SET_NOTFOUND;
         r = 0;
     }
 finish:
@@ -274,7 +274,7 @@ finish:
 
 int set_size(set_t *self){
     int r = -1;
-    if(check_valid(self) != SET_SUCCESS) {
+    if(check_valid(self) != ALC_SET_SUCCESS) {
         goto finish;
     }
     r = self->entries;
@@ -290,8 +290,8 @@ finish:
  */
 
 int set_okay(set_t *self) {
-    int status = SET_SUCCESS;
-    if((status = check_valid(self)) == SET_SUCCESS) {
+    int status = ALC_SET_SUCCESS;
+    if((status = check_valid(self)) == ALC_SET_SUCCESS) {
         status = self->status;
     }
     return status;
@@ -318,43 +318,43 @@ void set_free(set_t *self) {
  */
 
 static int check_valid(set_t *self) {
-    int r = SET_INVALID;
+    int r = ALC_SET_INVALID;
     if(self == NULL) {
         goto finish;
     }
 
     if(self->buf == NULL) {
-        r = SET_INVALID;
+        r = ALC_SET_INVALID;
         goto finish;
     }
 
     if(self->_filter == NULL) {
-        r = SET_INVALID;
+        r = ALC_SET_INVALID;
         goto finish;
     }
 
     if(self->compare == NULL) {
-        r = SET_INVALID;
+        r = ALC_SET_INVALID;
         goto finish;
     }
 
     if(self->load == NULL) {
-        r = SET_INVALID;
+        r = ALC_SET_INVALID;
         goto finish;
     }
 
-    r = SET_SUCCESS;
+    r = ALC_SET_SUCCESS;
 finish:
     return r;
 }
 
 
 int check_space_available(set_t *self, int size)  {
-    int status = SET_NO_MEM;
+    int status = ALC_SET_NO_MEM;
     switch((status = check_valid(self))) {
-        case SET_SUCCESS:
+        case ALC_SET_SUCCESS:
             status = ((self->entries + size) <= self->capacity) ? 
-                    SET_SUCCESS:SET_NO_MEM;
+                    ALC_SET_SUCCESS:ALC_SET_NO_MEM;
         break;
         default:
             DBG_LOG("Invalid status returned from check_valid: %d\n", status);

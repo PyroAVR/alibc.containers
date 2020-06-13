@@ -47,13 +47,13 @@ static void test_add(void **state) {
 
     int result = set_contains(uut, "we live, as we dream... alone.");
     assert_int_equal(result, 0);
-    assert_int_equal(set_okay(uut), SET_NOTFOUND);
+    assert_int_equal(set_okay(uut), ALC_SET_NOTFOUND);
     
     // test resize case 1: no space on first addition 
     // (we'll have to corrupt the structure to do this)
     uut->capacity = set_size(uut);
     result = set_add(uut, "resize me");
-    assert_int_equal(result, SET_SUCCESS);
+    assert_int_equal(result, ALC_SET_SUCCESS);
 }
 
 static void test_remove(void **state) {
@@ -86,15 +86,15 @@ static void test_resize(void **state) {
     // do not allow resize to smaller than number of elements
     result = set_resize(uut, 3);
     assert_int_equal(result, set_okay(uut));
-    assert_int_equal(result, SET_INVALID_REQ);
+    assert_int_equal(result, ALC_SET_INVALID_REQ);
 
     // ensure no-op is allowed
     result = set_resize(uut, set_size(uut));
-    assert_int_equal(result, SET_SUCCESS);
+    assert_int_equal(result, ALC_SET_SUCCESS);
 
     // ensure pre-reservation of extra space works
     result = set_resize(uut, 50);
-    assert_int_equal(result, SET_SUCCESS);
+    assert_int_equal(result, ALC_SET_SUCCESS);
 }
 
 static void test_iterator(void **state) {
@@ -134,13 +134,13 @@ static void test_iterator(void **state) {
 static void test_invalid_calls(void **state) {
     // test every check_space_available/check_valid case
     int r = set_add(NULL, NULL);
-    assert_int_equal(r, SET_INVALID);
+    assert_int_equal(r, ALC_SET_INVALID);
 
     r = set_remove(NULL, NULL);
     assert_null(r);
 
     r = set_resize(NULL, 0);
-    assert_int_equal(r, SET_INVALID);
+    assert_int_equal(r, ALC_SET_INVALID);
 
     r = set_size(NULL);
     assert_int_equal(r, -1);
@@ -151,19 +151,19 @@ static void test_invalid_calls(void **state) {
     // check for invalid load function
     set_t *uut = *state;
     uut->load = NULL;
-    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
 
     // invalid compare function
     uut->compare = NULL;
-    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
 
     // invalid bitmap
     uut->_filter = NULL;
-    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
 
     // invalid buffer
     uut->buf = NULL;
-    assert_int_equal(set_add(uut, NULL), SET_INVALID);
+    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
 }
 
 static int bad_hash_fn(void *item) {

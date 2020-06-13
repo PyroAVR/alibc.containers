@@ -1,9 +1,9 @@
 #pragma once
-#include "errors.h"
-#include "dynabuf.h"
-#include "bitmap.h"
+#include <alibc/extensions/dynabuf.h> 
+#include <alibc/extensions/bitmap.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <limits.h>
 
 /**
  * alibc/extensions hashmap interface
@@ -41,11 +41,14 @@ typedef struct {
     int val_offset;
 } hashmap_t;
 
-
-/*
- * hashmap status indication - compliant with alibc/extensions standard errors
- */
-typedef alibc_internal_errors hashmap_status;
+typedef enum {
+    ALC_HASHMAP_SUCCESS = 0,
+    ALC_HASHMAP_INVALID = INT_MIN,
+    ALC_HASHMAP_INVALID_REQ,
+    ALC_HASHMAP_NOTFOUND,
+    ALC_HASHMAP_NO_MEM,
+    ALC_HASHMAP_FAILURE
+} hashmap_error_t;
 
 /*
  * Constructor function for hashmap type
@@ -65,9 +68,9 @@ hashmap_t *create_hashmap(int size, int keysz, int valsz, hash_type *hashfn,
  * @param self the map to use
  * @param key the key which will be used to fetch the value
  * @param value the value which will be associated with the given key
- * @return operation status
+ * @return hashmap_error_t error code
  */
-hashmap_status hashmap_set(hashmap_t *self, void *key, void *value);
+int hashmap_set(hashmap_t *self, void *key, void *value);
 
 /*
  * Retrieve the value associated with the given key
@@ -91,7 +94,7 @@ void **hashmap_remove(hashmap_t *self, void *key);
  * of items which are currently allocated, shrink (with copy) to a new buffer.
  * @param self the hashmap to resize
  * @param count the number of entries which should be allocated.
- * @return hashmap_status_code
+ * @return hashmap_error_t error code.
  */
 int hashmap_resize(hashmap_t *self, int count);
 
@@ -112,7 +115,7 @@ void hashmap_free(hashmap_t *self);
 /*
  * Ascertain the status of the previous operation
  * @param self the hashmap to validate
- * @return the alibc/extensions error code, zero if successful.
+ * @return hashmap_error_t error code from the previous operation 
  */
 int hashmap_okay(hashmap_t *self);
 

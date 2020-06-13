@@ -36,12 +36,12 @@ typedef struct {
  * Error types for set
  */
 typedef enum {
-    SET_SUCCESS = 0,
-    SET_FAILURE = INT_MIN,
-    SET_NOTFOUND,
-    SET_NO_MEM,
-    SET_INVALID,
-    SET_INVALID_REQ
+    ALC_SET_SUCCESS = 0,
+    ALC_SET_FAILURE = INT_MIN,
+    ALC_SET_NOTFOUND,
+    ALC_SET_NO_MEM,
+    ALC_SET_INVALID,
+    ALC_SET_INVALID_REQ
 } set_error;
 
 /*

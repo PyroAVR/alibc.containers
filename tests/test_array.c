@@ -56,7 +56,7 @@ static void test_insert(void **state) {
 
     // attempt insertion past end of array
     int r = array_insert(at_uut, 20, "not valid");
-    assert_int_equal(r, IDX_OOB);
+    assert_int_equal(r, ALC_ARRAY_IDX_OOB);
 }
 
 static void test_unsafe_insert(void **state) {
@@ -78,7 +78,7 @@ static void test_unsafe_insert(void **state) {
 
     // attempt insertion past end of array
     int r = array_insert_unsafe(at_uut, 20, "not valid");
-    assert_int_equal(r, IDX_OOB);
+    assert_int_equal(r, ALC_ARRAY_IDX_OOB);
 }
 
 static void test_append(void **state) {
@@ -132,14 +132,14 @@ static void test_resize(void **state) {
     result = array_resize(at_uut, 5);
     // check that array_okay returns the same as the previous status
     assert_int_equal(result, array_okay(at_uut));
-    assert_int_equal(result, IDX_OOB);
+    assert_int_equal(result, ALC_ARRAY_IDX_OOB);
 
     // container shrinking is currently unimplemented, so we test only for no-op
     result = array_resize(at_uut, array_size(at_uut));
-    assert_int_equal(result, SUCCESS);
+    assert_int_equal(result, ALC_ARRAY_SUCCESS);
 
     result = array_resize(at_uut, 50);
-    assert_int_equal(result, SUCCESS);
+    assert_int_equal(result, ALC_ARRAY_SUCCESS);
 }
 
 static void test_indices(void **state) {
@@ -205,25 +205,25 @@ static void test_iterator(void **state) {
 static void test_invalid_calls(void **state) {
     // test  all check_valid/check_space_available cases
     int r = array_insert(NULL, 0, NULL);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_ARRAY_INVALID);
 
     r = array_insert_unsafe(NULL, 0, NULL);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_ARRAY_INVALID);
 
     r = array_append(NULL, 0);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_ARRAY_INVALID);
 
     r = array_fetch(NULL, 0);
     assert_int_equal(r, 0);
 
     r = array_resize(NULL, 0);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_ARRAY_INVALID);
 
     r = array_remove(NULL, 0);
     assert_int_equal(r, 0);
 
     r = array_swap(NULL, 0, 1);
-    assert_int_equal(r, NULL_ARG);
+    assert_int_equal(r, ALC_ARRAY_INVALID);
 
     r = array_size(NULL);
     assert_int_equal(r, -1);
@@ -249,7 +249,7 @@ static void test_swap(void **state) {
     // the only case that isn't covered is swapping out of bounds
     array_t *uut = *state;
     int r = array_swap(uut, 100, 0);
-    assert_int_equal(r, IDX_OOB);
+    assert_int_equal(r, ALC_ARRAY_IDX_OOB);
 }
 
 static void test_swap_big(void **state) {
