@@ -20,17 +20,17 @@ struct _iter_context {
 };
 
 typedef enum {
-    ITER_READY,
-    ITER_CONTINUE,
-    ITER_INVALID,
-    ITER_NULL,
-    ITER_STOP
-} iter_status;
+    ALC_ITER_READY,
+    ALC_ITER_CONTINUE,
+    ALC_ITER_INVALID,
+    ALC_ITER_NULL,
+    ALC_ITER_STOP
+} iterator_error_t;
 
 /**
  * Retrieve the next element from a previously created iterator.
  * @param ctx The iterator context which should be used to fetch and update
- * @return The next object in the sequence, or zero on error. Use iter_okay for
+ * @return The next object in the sequence, or zero on error. Use iter_status for
  * result validity checking.
  */
 void **iter_next(iter_context *ctx);
@@ -38,9 +38,9 @@ void **iter_next(iter_context *ctx);
 /**
  * Retrieve the status of an iterator.
  * @param ctx The iterator to determine the status of
- * @return A value in iter_status.
+ * @return iterator_error_t error code.
  */
-int iter_okay(iter_context *ctx);
+int iter_status(iter_context *ctx);
 
 /**
  * Free the memory associated with an iterator.  Does not affect the underlying

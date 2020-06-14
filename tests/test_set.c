@@ -1,10 +1,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <alibc/extensions/set.h>
-#include <alibc/extensions/hashmap.h>
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/set_iterator.h>
+#include <alibc/containers/set.h>
+#include <alibc/containers/hash_functions.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/set_iterator.h>
 #include <string.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -23,7 +23,7 @@ static bool full_load(int entries, int capacity) {
 
 static int set_init(void **state) {
     set_t *uut = create_set(
-        1, sizeof(char*), hashmap_hash_str, strcmp, full_load
+        1, sizeof(char*), alc_default_hash_str, strcmp, full_load
     );
     *state = uut;
     return 0;
@@ -47,7 +47,7 @@ static void test_add(void **state) {
 
     int result = set_contains(uut, "we live, as we dream... alone.");
     assert_int_equal(result, 0);
-    assert_int_equal(set_okay(uut), ALC_SET_NOTFOUND);
+    assert_int_equal(set_status(uut), ALC_SET_NOTFOUND);
     
     // test resize case 1: no space on first addition 
     // (we'll have to corrupt the structure to do this)
@@ -85,7 +85,7 @@ static void test_resize(void **state) {
     }
     // do not allow resize to smaller than number of elements
     result = set_resize(uut, 3);
-    assert_int_equal(result, set_okay(uut));
+    assert_int_equal(result, set_status(uut));
     assert_int_equal(result, ALC_SET_INVALID_REQ);
 
     // ensure no-op is allowed
@@ -102,7 +102,7 @@ static void test_iterator(void **state) {
     iter_context *iter = create_set_iterator(NULL);
     char *next = iter_next(iter);
     assert_null(next);
-    assert_int_equal(iter_okay(iter), ITER_INVALID);
+    assert_int_equal(iter_status(iter), ALC_ITER_INVALID);
     iter_free(iter);
 
     set_t *uut = *state;
@@ -111,7 +111,7 @@ static void test_iterator(void **state) {
     }
     iter = create_set_iterator(uut);
     assert_non_null(iter);
-    assert_int_equal(iter->status, ITER_READY);
+    assert_int_equal(iter->status, ALC_ITER_READY);
     // iterate one too far - check stop
     for(int i = 0; i < set_size(uut) + 1; i++) {
         next = iter_next(iter);
@@ -119,11 +119,11 @@ static void test_iterator(void **state) {
             next = *(char**)next;
         }
         if(i < set_size(uut)) {
-            assert_int_equal(iter->status, ITER_CONTINUE);
+            assert_int_equal(iter->status, ALC_ITER_CONTINUE);
             assert_true(set_contains(uut, next));
         }
         else {
-            assert_int_equal(iter->status, ITER_STOP);
+            assert_int_equal(iter->status, ALC_ITER_STOP);
             // oob case
             assert_null(next);
         }

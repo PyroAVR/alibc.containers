@@ -1,5 +1,5 @@
 # global project def
-project('alibc.extensions', 'c')
+project('alibc.containers', 'c')
 
 # ========= INSTALLATION CONTROL =========
 # Install compiled libraries?
@@ -71,9 +71,16 @@ sl_hashmap = library(
     install: should_install_libs
 )
 
-sl_hashmap_defaults = library(
-    'alc_hashmap_defaults',
-    'lib/hashmap_defaults.c',
+sl_hash_functions = library(
+    'alc_hash_functions',
+    'lib/hash_functions.c',
+    include_directories: includes,
+    install: should_install_libs
+)
+
+sl_comparators = library(
+    'alc_comparators',
+    'lib/comparators.c',
     include_directories: includes,
     install: should_install_libs
 )
@@ -134,9 +141,14 @@ dep_hashmap = declare_dependency(
     link_with: [sl_hashmap, sl_bitmap, sl_dynabuf]
 )
 
-dep_hashmap_funcs = declare_dependency(
+dep_hash_functions = declare_dependency(
     include_directories: includes,
-    link_with: sl_hashmap_defaults
+    link_with: sl_hash_functions
+)
+
+dep_comparators = declare_dependency(
+    include_directories: includes,
+    link_with: sl_comparators
 )
 
 dep_set = declare_dependency(
@@ -191,7 +203,7 @@ if ext_cmocka.found() and should_build_tests
     exe_set_test = executable(
         'settest', 'tests/test_set.c',
         link_with: [
-            sl_set, sl_hashmap_defaults, sl_iterator, sl_set_iter
+            sl_set, sl_hash_functions, sl_comparators, sl_iterator, sl_set_iter
         ],
         include_directories: includes,
         dependencies: ext_cmocka
@@ -202,7 +214,7 @@ if ext_cmocka.found() and should_build_tests
         include_directories: includes,
         link_with:
             [
-                sl_hashmap, sl_hashmap_defaults,
+                sl_hashmap, sl_hash_functions, sl_comparators,
                 sl_iterator, sl_hashmap_iter, 
                 sl_bitmap, sl_dynabuf, sl_bitmap
             ],

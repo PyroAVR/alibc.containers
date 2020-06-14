@@ -1,5 +1,5 @@
-#include <alibc/extensions/hashmap.h>
-#include <alibc/extensions/iterator.h>
+#include <alibc/containers/hashmap.h>
+#include <alibc/containers/iterator.h>
 #include <stdlib.h>
 #include <stdio.h>
 #define value_at(self, idx) (void**)((char*)dynabuf_fetch(self->map, idx) + self->val_offset)
@@ -9,7 +9,7 @@ static void **hashmap_iter_keys(iter_context *ctx) {
     void **r = NULL;
     hashmap_t *target = (hashmap_t*)ctx->_data;
     if(target == NULL) {
-        ctx->status = ITER_INVALID;
+        ctx->status = ALC_ITER_INVALID;
         goto done;
     }
     while(ctx->index < target->capacity
@@ -17,10 +17,10 @@ static void **hashmap_iter_keys(iter_context *ctx) {
         ctx->index++;
     }
     if(ctx->index == target->capacity) {
-        ctx->status = ITER_STOP;
+        ctx->status = ALC_ITER_STOP;
     }
     else {
-        ctx->status = ITER_CONTINUE;
+        ctx->status = ALC_ITER_CONTINUE;
         r = key_at(target, ctx->index);
         ctx->index++;
     }
@@ -32,7 +32,7 @@ static void **hashmap_iter_values(iter_context *ctx) {
     void *r = NULL;
     hashmap_t *target = (hashmap_t*)ctx->_data;
     if(target == NULL) {
-        ctx->status = ITER_INVALID;
+        ctx->status = ALC_ITER_INVALID;
         goto done;
     }
     while(ctx->index < target->capacity
@@ -40,10 +40,10 @@ static void **hashmap_iter_values(iter_context *ctx) {
         ctx->index++;
     }
     if(ctx->index == target->capacity) {
-        ctx->status = ITER_STOP;
+        ctx->status = ALC_ITER_STOP;
     }
     else {
-        ctx->status = ITER_CONTINUE;
+        ctx->status = ALC_ITER_CONTINUE;
         r = value_at(target, ctx->index);
         ctx->index++;
     }
@@ -57,7 +57,7 @@ iter_context *create_hashmap_keys_iterator(hashmap_t *target) {
         goto done;
     }
     r->index = 0;
-    r->status = ITER_READY;
+    r->status = ALC_ITER_READY;
     r->_data = target;
     r->next = hashmap_iter_keys;
 done:
@@ -70,7 +70,7 @@ iter_context *create_hashmap_values_iterator(hashmap_t *target) {
         goto done;
     }
     r->index = 0;
-    r->status = ITER_READY;
+    r->status = ALC_ITER_READY;
     r->_data = target;
     r->next = hashmap_iter_values;
 done:

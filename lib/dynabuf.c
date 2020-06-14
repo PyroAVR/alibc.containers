@@ -1,5 +1,5 @@
-#include <alibc/extensions/debug.h>
-#include <alibc/extensions/dynabuf.h>
+#include <alibc/containers/debug.h>
+#include <alibc/containers/dynabuf.h>
 #include <stdlib.h>
 #include <string.h>
 

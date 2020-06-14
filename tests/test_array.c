@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <string.h>
-#include <alibc/extensions/array.h>
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/array_iterator.h>
+#include <alibc/containers/array.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/array_iterator.h>
 #include <stdlib.h>
 #include <setjmp.h>
 #include <cmocka.h>
@@ -130,8 +130,8 @@ static void test_resize(void **state) {
         array_append(at_uut, i);
     }
     result = array_resize(at_uut, 5);
-    // check that array_okay returns the same as the previous status
-    assert_int_equal(result, array_okay(at_uut));
+    // check that array_status returns the same as the previous status
+    assert_int_equal(result, array_status(at_uut));
     assert_int_equal(result, ALC_ARRAY_IDX_OOB);
 
     // container shrinking is currently unimplemented, so we test only for no-op
@@ -180,21 +180,21 @@ static void test_iterator(void **state) {
 
     next = iter_next(NULL);
     assert_null(next);
-    assert_int_equal(iter_okay(NULL), ITER_NULL);
+    assert_int_equal(iter_status(NULL), ALC_ITER_NULL);
 
     array_t *at_uut = *state;
     iter = create_array_iterator(at_uut);
     assert_non_null(iter);
-    assert_int_equal(iter->status, ITER_READY);
+    assert_int_equal(iter->status, ALC_ITER_READY);
     // iterate one too far - check stop
     for(int i = 0; i < array_size(at_uut) + 1; i++) {
         next = iter_next(iter);
-        // ITER_STOP comes into effect AFTER the last element is pulled
+        // ALC_ITER_STOP comes into effect AFTER the last element is pulled
         if(i < array_size(at_uut)-1) {
-            assert_int_equal(iter->status, ITER_CONTINUE);
+            assert_int_equal(iter->status, ALC_ITER_CONTINUE);
         }
         else if(i == array_size(at_uut)) {
-            assert_int_equal(iter_okay(iter), ITER_STOP);
+            assert_int_equal(iter_status(iter), ALC_ITER_STOP);
             // oob case
             assert_null(next);
         }

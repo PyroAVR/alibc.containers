@@ -1,9 +1,8 @@
 #pragma once
-#include <stdint.h>
 #include <limits.h>
-#include "dynabuf.h"
+#include <alibc/containers/dynabuf.h>
 /**
- * alibc/extensions array interface
+ * alibc/containers array interface
  * A simple contiguous-allocation array.
  * Guarantees:
  *  - contiguous allocation
@@ -21,8 +20,8 @@
  */
 typedef struct  {
     dynabuf_t   *data;
-    uint32_t    size;
-    uint32_t    status;
+    int    size;
+    int    status;
 } array_t;
 
 /**
@@ -42,7 +41,7 @@ typedef enum {
  * @param unit the size of each array element
  * @return new array, or null on errors.
  */
-array_t *create_array(uint32_t size, uint32_t unit);
+array_t *create_array(int size, int unit);
 
 /*
  * Insert a new value into the array
@@ -126,4 +125,4 @@ void array_free(array_t *self);
  * @param self the array to validate
  * @return ALC_ARRAY_* error code corresponding to the most recent operation
  */
-int array_okay(array_t *self);
+int array_status(array_t *self);

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <alibc/extensions/bitmap.h>
+#include <alibc/containers/bitmap.h>
 #include <setjmp.h>
 #include <cmocka.h>
 

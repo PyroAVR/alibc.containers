@@ -1,7 +1,9 @@
-#include <alibc/extensions/hashmap.h>
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/hashmap_iterator.h>
-#include <alibc/extensions/bitmap.h>
+#include <alibc/containers/hashmap.h>
+#include <alibc/containers/hash_functions.h>
+#include <alibc/containers/comparators.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/hashmap_iterator.h>
+#include <alibc/containers/bitmap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -14,7 +16,7 @@ char *names[] = {"one", "two", "three", "four", "five",
 
 static int ht_init(void **state)  {
     hashmap_t *uut  = create_hashmap(
-        2, sizeof(char*), sizeof(int), hashmap_hash_i64, strcmp, NULL
+        2, sizeof(char*), sizeof(int), alc_default_hash_i64, strcmp, NULL
     );
     assert_non_null(uut);
     for(uint64_t i = 0; i < 10; i++) {
@@ -45,7 +47,7 @@ static void test_set_get(void **state) {
     // check that null key returns null
     uint64_t result = (uint64_t)hashmap_fetch(uut, (void*)0);
     assert_null(result);
-    assert_int_equal(hashmap_okay(uut), ALC_HASHMAP_NOTFOUND);
+    assert_int_equal(hashmap_status(uut), ALC_HASHMAP_NOTFOUND);
 
     // check that an unmapped key returns null
     result = (uint64_t)hashmap_fetch(uut, "two twenty one");
@@ -92,7 +94,7 @@ static void test_resize(void **state) {
         hashmap_set(uut, (void*)names[i], (void*)i);
     }
     result = hashmap_resize(uut, 5);
-    assert_int_equal(result, hashmap_okay(uut));
+    assert_int_equal(result, hashmap_status(uut));
     assert_int_equal(result, ALC_HASHMAP_INVALID_REQ);
 
     result = hashmap_resize(uut, hashmap_size(uut));
@@ -113,21 +115,21 @@ static void test_iter_keys(void **state) {
     iter_context *iter = create_hashmap_keys_iterator(NULL);
     char *next = iter_next(iter);
     assert_null(next);
-    assert_int_equal(iter_okay(iter), ITER_INVALID);
+    assert_int_equal(iter_status(iter), ALC_ITER_INVALID);
     iter_free(iter);
 
     hashmap_t *uut = *state;
     iter = create_hashmap_keys_iterator(uut);
     assert_non_null(iter);
-    assert_int_equal(iter->status, ITER_READY);
+    assert_int_equal(iter->status, ALC_ITER_READY);
     // iterate one too far - check stop
     for(int i = 0; i < 11; i++) {
         next = iter_next(iter);
         if(i < 10) {
-            assert_int_equal(iter->status, ITER_CONTINUE);
+            assert_int_equal(iter->status, ALC_ITER_CONTINUE);
         }
         else if(i == 10) {
-            assert_int_equal(iter->status, ITER_STOP);
+            assert_int_equal(iter->status, ALC_ITER_STOP);
             // oob case
             assert_null(next);
         }
@@ -140,23 +142,23 @@ static void test_iter_values(void **state) {
     iter_context *iter = create_hashmap_values_iterator(NULL);
     char *next = iter_next(iter);
     assert_null(next);
-    assert_int_equal(iter_okay(iter), ITER_INVALID);
+    assert_int_equal(iter_status(iter), ALC_ITER_INVALID);
     iter_free(iter);
 
     hashmap_t *uut = *state;
     iter = create_hashmap_values_iterator(uut);
     assert_non_null(iter);
-    assert_int_equal(iter->status, ITER_READY);
+    assert_int_equal(iter->status, ALC_ITER_READY);
     bitmap_t *values_bmp = create_bitmap(sizeof(names)/sizeof(char*));
     // iterate one too far - check stop
     for(int i = 0; i < 11; i++) {
         next = (int*)iter_next(iter);
         if(i < 10) {
-            assert_int_equal(iter->status, ITER_CONTINUE);
+            assert_int_equal(iter->status, ALC_ITER_CONTINUE);
             bitmap_add(values_bmp, *next);
         }
         else if(i == 10) {
-            assert_int_equal(iter->status, ITER_STOP);
+            assert_int_equal(iter->status, ALC_ITER_STOP);
             // oob case
             assert_null(next);
         }

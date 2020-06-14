@@ -1,5 +1,5 @@
 #pragma once
-#include "dynabuf.h"
+#include <alibc/containers/dynabuf.h>
 /*
  * Linear Bitmap
  * Compact set type for dense, integer valued sets.

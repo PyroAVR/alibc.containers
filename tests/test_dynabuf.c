@@ -1,4 +1,4 @@
-#include <alibc/extensions/dynabuf.h>
+#include <alibc/containers/dynabuf.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>

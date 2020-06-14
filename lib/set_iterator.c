@@ -1,6 +1,6 @@
-#include <alibc/extensions/set.h>
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/dynabuf.h>
+#include <alibc/containers/set.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/dynabuf.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -8,7 +8,7 @@ static void **set_iter_next(iter_context *ctx) {
     void **r = NULL;
     set_t *target = (set_t*)ctx->_data;
     if(target == NULL) {
-        ctx->status = ITER_INVALID;
+        ctx->status = ALC_ITER_INVALID;
         goto done;
     }
     while(ctx->index < target->capacity
@@ -16,10 +16,10 @@ static void **set_iter_next(iter_context *ctx) {
         ctx->index++;
     }
     if(ctx->index == target->capacity) {
-        ctx->status = ITER_STOP;
+        ctx->status = ALC_ITER_STOP;
     }
     else {
-        ctx->status = ITER_CONTINUE;
+        ctx->status = ALC_ITER_CONTINUE;
         r = dynabuf_fetch(target->buf, ctx->index);
         ctx->index++;
     }
@@ -33,7 +33,7 @@ iter_context *create_set_iterator(set_t *target) {
         goto done;
     }
     r->index = 0;
-    r->status = ITER_READY;
+    r->status = ALC_ITER_READY;
     r->_data = target;
     r->next = set_iter_next;
 done:

@@ -1,7 +1,7 @@
-#include <alibc/extensions/hashmap.h>
-#include <alibc/extensions/debug.h>
-#include <alibc/extensions/dynabuf.h>
-#include <alibc/extensions/bitmap.h>
+#include <alibc/containers/hashmap.h>
+#include <alibc/containers/debug.h>
+#include <alibc/containers/dynabuf.h>
+#include <alibc/containers/bitmap.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -70,17 +70,12 @@ done:
 int hashmap_set(hashmap_t *self, void *key, void *value)    {
     int status;
     uint32_t hash;
-    uint32_t index;
-    /*
-     *uint32_t    start_index = 0;
-     */
+    int index;
+
     switch((status = check_space_available(self, 1)))   {
         case ALC_HASHMAP_SUCCESS:
             hash        = self->hash(key);
             index       = hash % self->capacity;
-            /*
-             *start_index = index;
-             */
             // index guaranteed in range
             // scan for next open entry
             while(bitmap_contains(self->_filter, index))    {
@@ -88,23 +83,9 @@ int hashmap_set(hashmap_t *self, void *key, void *value)    {
                         self->compare(key,
                         key_at(self, index)) == 0) {
                     DBG_LOG("got repeat key case\n");
-                    goto repeat_key; // zoinks
+                    goto repeat_key;
                 }
                 index = (index + 1) % self->capacity;
-                // space was available, this is impossible
-                /*
-                 *if(index == start_index)    {
-                 *    DBG_LOG("hashmap resize on key at:%p"
-                 *            " was unexpected.  Corruption likely.\n", key);
-                 *    status = rehash(self, 2*self->capacity + 1);
-                 *    if(status != ALC_HASHMAP_SUCCESS) {
-                 *        DBG_LOG("Could not rehash on insert\n");
-                 *        self->status = status;
-                 *        return status;
-                 *    }
-                 *    return hashmap_set(self, key, value);
-                 *}
-                 */
             }
             self->entries++;
             int next = 0;
@@ -212,7 +193,7 @@ invalid_status:
     return status;
 }
 
-uint32_t hashmap_size(hashmap_t *self)   {
+int hashmap_size(hashmap_t *self)   {
     int status = check_valid(self);
     int size = -1;
     if(status == ALC_HASHMAP_SUCCESS) {
@@ -239,7 +220,7 @@ void hashmap_free(hashmap_t *self)   {
     }
 }
 
-int hashmap_okay(hashmap_t *self)   {
+int hashmap_status(hashmap_t *self)   {
     return (self == NULL) ? ALC_HASHMAP_INVALID:self->status;
 }
 
@@ -252,10 +233,10 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
     }
 
     uint32_t hash = self->hash(key);
-    uint32_t index = hash % self->capacity;
-    uint32_t start_index = index;
-    int is_valid = 0;
-    int is_equal = 0;
+    int index = hash % self->capacity;
+    int start_index = index;
+    bool is_valid = 0;
+    bool is_equal = 0;
     while(!is_equal || !is_valid)   {
         uint8_t null_check = 0;
         
@@ -295,10 +276,6 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
     return index;
 }
 
-// try to rewrite this to recursively re-hash in place via marking each
-// kv pair as whether they're in the correct location or not, and rehashing in
-// storage order until a conflict occurs - then recursively re-hash until no
-// conflicts remain and continue until the end of the list is reached
 static int rehash(hashmap_t *self, int count)   {
     int status = check_valid(self);
     dynabuf_t *scratch_map;
@@ -329,38 +306,17 @@ static int rehash(hashmap_t *self, int count)   {
     memset(scratch_map->buf, 0, count*self->map->elem_size);
     memset(scratch_filter->buf, 0, filter_size_constraint(count));
 
-    for(uint32_t i = 0; i < self->capacity; i++)    {
+    for(int i = 0; i < self->capacity; i++)    {
         if(!bitmap_contains(self->_filter, i))   {
             continue;
         }
         uint32_t hash = self->hash(key_at(self, i));
-        uint32_t index = hash % count;
-        /*
-         *uint32_t start_index = index;
-         */
-        // scan for next open entry
-        // the condition here is the same as kv_valid, but as we do not have
-        // a valid 'self' for this entry, we have to re-write it here
-        // FIXME this should not be the case.
+        int index = hash % count;
+
         while(bitmap_contains(scratch_filter, index))  {
             index = (index + 1) % self->capacity;
-            // space was allocated for enough keys, this should be impossible.
-            /*
-             *if(index == start_index)    {
-             *    DBG_LOG("Could not find a suitable location "
-             *    " to insert hash: %d and new size: %d\n",
-             *    hash, count);
-             *    dynabuf_free(scratch_map);
-             *    bitmap_free(scratch_filter);
-             *    status = ALC_HASHMAP_NO_MEM;
-             *    goto finish;
-             *}
-             */
         }
         dynabuf_set(scratch_map, index, dynabuf_fetch(self->map, i));
-        /*
-         *kv_cast(scratch_map->buf)[index] = kv_cast(dynabuf_fetch(self->map, i));
-         */
         bitmap_add(scratch_filter, index);
     }
 

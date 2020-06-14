@@ -1,6 +1,6 @@
-#include <alibc/extensions/set.h>
-#include <alibc/extensions/dynabuf.h>
-#include <alibc/extensions/debug.h>
+#include <alibc/containers/set.h>
+#include <alibc/containers/dynabuf.h>
+#include <alibc/containers/debug.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -13,14 +13,14 @@ static inline bool default_load(int, int);
 
 set_t *create_set(int size, int unit, hash_type *hashfn,
         cmp_type *comparefn, load_type *loadfn) {
-    set_t *r    = malloc(sizeof(set_t));
+    set_t *r = malloc(sizeof(set_t));
     if(r == NULL) {
         DBG_LOG("Could not malloc set container\n");
         r = NULL;
         goto finish;
     }
     
-    r->buf      = create_dynabuf(size, unit);
+    r->buf = create_dynabuf(size, unit);
     if(r->buf == NULL) {
         DBG_LOG("Could not malloc backing buffer for set\n");
         free(r);
@@ -28,7 +28,7 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
         goto finish;
     }
 
-    r->_filter  = create_bitmap(size);
+    r->_filter = create_bitmap(size);
     if(r->_filter == NULL) {
         DBG_LOG("Could not malloc filter bitmap for set \n");
         dynabuf_free(r->buf);
@@ -37,19 +37,19 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
         goto finish;
     }
 
-    r->entries  = 0;
+    r->entries = 0;
     r->capacity = size;
-    r->hash     = hashfn;
+    r->hash = hashfn;
 
     if(loadfn == NULL) {
-        r->load     = default_load;
+        r->load = default_load;
     }
     else {
-        r->load     = loadfn;
+        r->load = loadfn;
     }
 
-    r->compare  = comparefn;
-    r->status   = ALC_SET_SUCCESS;
+    r->compare = comparefn;
+    r->status = ALC_SET_SUCCESS;
 finish:
     return r;
 }
@@ -60,17 +60,17 @@ static int rehash(set_t *self, int count) {
         goto finish;
     }
 
-    dynabuf_t   *scratch_buf;
-    dynabuf_t   *scratch_filter;
+    dynabuf_t *scratch_buf;
+    dynabuf_t *scratch_filter;
 
-    scratch_buf     = create_dynabuf(count, self->buf->elem_size);
+    scratch_buf = create_dynabuf(count, self->buf->elem_size);
     if(scratch_buf == NULL) {
         DBG_LOG("Could not create new backing array with size %d\n",
                 self->capacity);
         status = ALC_SET_NO_MEM;
         goto finish;
     }
-    scratch_filter  = create_bitmap(count);
+    scratch_filter = create_bitmap(count);
     if(scratch_filter == NULL) {
         DBG_LOG("Could not create new bitmap with size %d\n",
                 self->capacity);
@@ -82,45 +82,28 @@ static int rehash(set_t *self, int count) {
     memset(scratch_buf->buf, 0, sizeof(void*)*count);
     memset(scratch_filter->buf, 0, count >> 3);
 
-    for(uint32_t i = 0; i < self->capacity; i++) {
+    for(int i = 0; i < self->capacity; i++) {
         if(!bitmap_contains(self->_filter, i)) {
             continue;
         }
         
         void **temp_item = dynabuf_fetch(self->buf,i);
-        uint32_t hash   = self->hash(*temp_item);
-        uint32_t index  = hash % count;
-        /*
-         *uint32_t start_index = index;
-         */
+        uint32_t hash = self->hash(*temp_item);
+        int index = hash % count;
+
         while(bitmap_contains(scratch_filter, index)) {
             index = (index + 1) % self->capacity;
-            // space was reserved for the re-index, this is impossible.
-            /*
-             *if(index == start_index) {
-             *    DBG_LOG("Could not find a suitable location to insert hash: "
-             *            "%d and new size: %d\n", hash, count);
-             *    dynabuf_free(scratch_buf);
-             *    bitmap_free(scratch_filter);
-             *    self->status = ALC_SET_NO_MEM;
-             *    status = ALC_SET_NO_MEM;
-             *    goto finish;
-             *}
-             */
         }
         dynabuf_set(scratch_buf, index, *temp_item);
-        /*
-         *scratch_buf->buf[index] = self->buf->buf[i];
-         */
         bitmap_add(scratch_filter, index);
     }
 
     dynabuf_free(self->buf);
     bitmap_free(self->_filter);
-    self->buf       = scratch_buf;
-    self->_filter   = scratch_filter;
-    self->capacity  = count;
-    self->status    = ALC_SET_SUCCESS;
+    self->buf = scratch_buf;
+    self->_filter = scratch_filter;
+    self->capacity = count;
+    self->status = ALC_SET_SUCCESS;
     status = ALC_SET_SUCCESS;
 finish:
     return status;
@@ -151,11 +134,8 @@ int set_add(set_t *self, void *item) {
         break;
     }
 
-    uint32_t    hash        = self->hash(item);
-    uint32_t    index       = hash % self->capacity;
-    /*
-     *uint32_t    start_index = index;
-     */
+    uint32_t hash = self->hash(item);
+    int index = hash % self->capacity;
 
     // loop until we find an open spot to insert into
     while(bitmap_contains(self->_filter, index)) {
@@ -167,30 +147,12 @@ int set_add(set_t *self, void *item) {
             goto repeat_item;
         }
         index = (index + 1) % self->capacity;
-        // this case should be impossible to reach given the above.
-        /*
-         *if(index == start_index) {
-         *    if(rehash(self, (self->capacity * 2) + 1) == ALC_SET_SUCCESS) {
-         *        status = set_add(self, item);
-         *        goto finish;
-         *    }
-         *    else {
-         *        DBG_LOG("could not resize set on add, but space was reported "
-         *                "available, structure corruption is likely.\n");
-         *        status = ALC_SET_NO_MEM;
-         *        goto finish;
-         *    }
-         *}
-         */
     }
     
     self->entries++;
     bitmap_add(self->_filter, index);
 repeat_item:
     dynabuf_set(self->buf, index, item);
-    /*
-     *self->buf->buf[index] = item;
-     */
 
     status = ALC_SET_SUCCESS;
     if(self->load(self->entries, self->capacity) == true) {
@@ -252,6 +214,8 @@ finish:
 finish_nostat:
     return status;
 }
+
+
 int set_contains(set_t *self, void *item) {
     int r = 0;
     if(check_valid(self) != ALC_SET_SUCCESS) {
@@ -283,13 +247,7 @@ finish:
 }
 
 
-/*
- *void *set_iterate(set_t *self, iter_context *context) {
- *    return 0;
- *}
- */
-
-int set_okay(set_t *self) {
+int set_status(set_t *self) {
     int status = ALC_SET_SUCCESS;
     if((status = check_valid(self)) == ALC_SET_SUCCESS) {
         status = self->status;
@@ -363,11 +321,11 @@ int check_space_available(set_t *self, int size)  {
 }
 
 static int set_locate(set_t *self, void *item) {
-    uint32_t    hash        = self->hash(item);
-    uint32_t    index       = hash % self->capacity;
-    uint32_t    start_index = index;
-    uint8_t     is_valid    = 0;
-    uint8_t     is_equal    = 0;
+    uint32_t hash = self->hash(item);
+    int index = hash % self->capacity;
+    int start_index = index;
+    bool     is_valid    = 0;
+    bool     is_equal    = 0;
     while(!is_equal || !is_valid) {
         uint8_t null_check = 0;
 

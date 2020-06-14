@@ -1,6 +1,6 @@
 #pragma once
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/hashmap.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/hashmap.h>
 
 /**
  * Create a new iterator from the given hashmap, starting at the first element.

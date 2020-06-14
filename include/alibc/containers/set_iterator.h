@@ -1,6 +1,6 @@
 #pragma once
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/set.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/set.h>
 
 /**
  * Create a new iterator from the given set, starting at the first element.

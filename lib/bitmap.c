@@ -1,5 +1,5 @@
-#include <alibc/extensions/bitmap.h>
-#include <stdlib.h>
+#include <alibc/containers/bitmap.h>
+#include <stddef.h>
 
 bitmap_t *create_bitmap(int max) {
     // can't have less than one byte allocated.

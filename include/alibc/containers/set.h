@@ -3,12 +3,16 @@
 #include <stdbool.h>
 #include <limits.h>
 #include <stdbool.h>
-#include "dynabuf.h"
-#include "bitmap.h"
+#include <alibc/containers/dynabuf.h>
+#include <alibc/containers/bitmap.h>
 /*
- * Simple containment set
- * The basic set interface is defined here, more complex set operations can be
- * located in include/set_math.h
+ * Simple hash set
+ * The basic set interface is defined here, on top of which complex set
+ * operations can be built.
+ * Guarantees:
+ *  - entry validity
+ *  - entry uniqueness
+ * Non-Guarantees:
  */
 
 /*
@@ -27,9 +31,9 @@ typedef struct {
     hash_type   *hash;
     load_type *load;
     cmp_type  *compare;
-    uint32_t  entries;
-    uint32_t  capacity;
-    uint32_t  status;
+    int  entries;
+    int  capacity;
+    int  status;
 } set_t;
 
 /*
@@ -103,7 +107,7 @@ int set_resize(set_t *self, int count);
  * implementation-specific data on, which can be used to retrieve the state of
  * iteration on subsequent calls.
  * @return the next object in the set, or NULL if there are no objects
- * remaining.  The iteration_context will have its status set to ITER_DONE in
+ * remaining.  The iteration_context will have its status set to ALC_ITER_DONE in
  * this case.
  */
 /*
@@ -120,7 +124,7 @@ int set_size(set_t *self);
  * Return the status of the most recent set operation.
  * @param self the set to evaluate
  */
-int set_okay(set_t *self);
+int set_status(set_t *self);
 
 /*
  * Destroy the set and free all memory allocated by it.

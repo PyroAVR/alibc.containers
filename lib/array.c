@@ -1,15 +1,14 @@
-#include <alibc/extensions/array.h>
-#include <alibc/extensions/dynabuf.h>
-#include <alibc/extensions/debug.h>
+#include <alibc/containers/array.h>
+#include <alibc/containers/dynabuf.h>
+#include <alibc/containers/debug.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <string.h>
 
 // private functions
 static int check_valid(array_t*);
 static int check_space_available(array_t*, int);
 
-array_t *create_array(uint32_t size, uint32_t unit) {
+array_t *create_array(int size, int unit) {
     array_t *r       = malloc(sizeof(array_t));
     if(r == NULL)   {
         DBG_LOG("Could not malloc array_t\n");
@@ -137,7 +136,7 @@ void **array_fetch(array_t *self, int which)    {
         status = ALC_ARRAY_IDX_OOB;
         goto done;
     }
-    if(which >= self->size) {
+    if(which >= self->size || which < 0) {
         DBG_LOG("Requested fetch index was out of bounds: %d\n", which);
         status = ALC_ARRAY_IDX_OOB;
         goto done;
@@ -169,23 +168,6 @@ int array_resize(array_t *self, int count) {
             goto done;
         }
     }
-/*
- *    else if(count >= self->size) {
- *        //resize and shrink size
- *        dynabuf_t *new_buf = create_dynabuf(count, self->data->elem_size);
- *        if(new_buf == NULL) {
- *            DBG_LOG("Could not create new (smaller) dynabuf for array.\n");
- *            status = NO_MEM;
- *            goto finish;
- *        }
- *        memcpy(new_buf->buf, self->data->buf, new_buf->elem_size*self->size);
- *        dynabuf_free(self->data);
- *        self->data = new_buf;
- *        status = SUCCESS;
- *        goto finish;
- *
- *    }
- */
     else {
         DBG_LOG("Requested array count %d was too small\n", count);
         status = ALC_ARRAY_IDX_OOB;
@@ -292,7 +274,7 @@ void array_free(array_t *self)    {
     }
 }
 
-inline int array_okay(array_t *self)    {
+inline int array_status(array_t *self)    {
     return self->status;
 }
 

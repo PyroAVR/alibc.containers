@@ -1,6 +1,6 @@
 #pragma once
-#include <alibc/extensions/iterator.h>
-#include <alibc/extensions/array.h>
+#include <alibc/containers/iterator.h>
+#include <alibc/containers/array.h>
 
 /**
  * Create a new iterator from the given array, starting at the first element.

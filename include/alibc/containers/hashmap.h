@@ -1,15 +1,16 @@
 #pragma once
-#include <alibc/extensions/dynabuf.h> 
-#include <alibc/extensions/bitmap.h>
+#include <alibc/containers/dynabuf.h> 
+#include <alibc/containers/bitmap.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
 
 /**
- * alibc/extensions hashmap interface
+ * alibc/containers hashmap interface
  * A compact open-addressing hash-backed key-value map.
  * Guarantees:
  *  - entry validity
+ *  - entry uniqueness
  * Non-Guarantees:
  */
 
@@ -35,9 +36,9 @@ typedef struct {
     hash_type *hash;
     load_type *load;
     cmp_type    *compare;
-    uint32_t    entries;
-    uint32_t    capacity;
-    uint32_t    status;
+    int    entries;
+    int    capacity;
+    int    status;
     int val_offset;
 } hashmap_t;
 
@@ -103,7 +104,7 @@ int hashmap_resize(hashmap_t *self, int count);
  * @param self the map to use
  * @return the size of the map in elements. 
  */
-uint32_t hashmap_size(hashmap_t *self);
+int hashmap_size(hashmap_t *self);
 
 /*
  * Return the memory used to allocate the hashmap and underlying buffers to the
@@ -117,27 +118,4 @@ void hashmap_free(hashmap_t *self);
  * @param self the hashmap to validate
  * @return hashmap_error_t error code from the previous operation 
  */
-int hashmap_okay(hashmap_t *self);
-
-/*
- * Comparison functions provided as sensible defaults.  Note that the
- * definitions for these functions must be linked separately from 
- * hashmap_defaults.
- */
-int8_t hashmap_cmp_i8(void *a, void *b);
-int8_t hashmap_cmp_i16(void *a, void *b);
-int8_t hashmap_cmp_i32(void *a, void *b);
-int8_t hashmap_cmp_i64(void *a, void *b);
-int8_t hashmap_cmp_ptr(void *a, void *b);
-int8_t hashmap_cmp_str(void *a, void *b);
-
-/*
- * Hash functions provided as sensible defaults.  Note that the definitions
- * for these functions must be linked separately from hashmap_defaults.
- */
-uint32_t hashmap_hash_i8(void *val);
-uint32_t hashmap_hash_i16(void *val);
-uint32_t hashmap_hash_i32(void *val);
-uint32_t hashmap_hash_i64(void *val);
-uint32_t hashmap_hash_ptr(void *ptr);
-uint32_t hashmap_hash_str(void *str);
+int hashmap_status(hashmap_t *self);
