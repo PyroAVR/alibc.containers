@@ -79,9 +79,9 @@ int hashmap_set(hashmap_t *self, void *key, void *value)    {
             // index guaranteed in range
             // scan for next open entry
             while(bitmap_contains(self->_filter, index))    {
-                if(key_at(self, index) != NULL && key != NULL &&
+                if(*key_at(self, index) != NULL && key != NULL &&
                         self->compare(key,
-                        key_at(self, index)) == 0) {
+                        *key_at(self, index)) == 0) {
                     DBG_LOG("got repeat key case\n");
                     goto repeat_key;
                 }
@@ -285,6 +285,11 @@ static int rehash(hashmap_t *self, int count)   {
         goto done;
     }
 
+    if(count < self->entries || count < 1) {
+        status = ALC_HASHMAP_INVALID_REQ;
+        goto done;
+    }
+
     scratch_map     = create_dynabuf(count, self->map->elem_size);
     if(scratch_map == NULL) {
         DBG_LOG("Could not create new array with size %d\n",
@@ -362,7 +367,7 @@ done:
 int check_space_available(hashmap_t *self, int size)  {
     int status = check_valid(self);
     if(status == ALC_HASHMAP_SUCCESS) {
-        status = ((self->entries + size) <= self->capacity) ?
+        status = (self->capacity - (self->entries + size) > 0) ?
             ALC_HASHMAP_SUCCESS:ALC_HASHMAP_NO_MEM;
     }
     else {

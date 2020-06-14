@@ -2,9 +2,10 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
-#include <stdbool.h>
 #include <alibc/containers/dynabuf.h>
 #include <alibc/containers/bitmap.h>
+#include <alibc/containers/hashable.h>
+#include <alibc/containers/comparable.h>
 /*
  * Simple hash set
  * The basic set interface is defined here, on top of which complex set
@@ -18,9 +19,6 @@
 /*
  * function typedefs
  */
-// gross, FIXME! (alc-24)
-typedef uint32_t (hash_type)(void*);
-typedef int8_t (cmp_type)(void*, void*);
 typedef bool (load_type)(int entries, int capacity);
 
 

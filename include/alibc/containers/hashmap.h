@@ -1,9 +1,11 @@
 #pragma once
-#include <alibc/containers/dynabuf.h> 
-#include <alibc/containers/bitmap.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <limits.h>
+#include <alibc/containers/dynabuf.h> 
+#include <alibc/containers/bitmap.h>
+#include <alibc/containers/hashable.h>
+#include <alibc/containers/comparable.h>
 
 /**
  * alibc/containers hashmap interface
@@ -14,11 +16,6 @@
  * Non-Guarantees:
  */
 
-/*
- * function typedefs
- */
-typedef uint32_t (hash_type)(void *);
-typedef int8_t (cmp_type)(void *, void*);
 /*
  * Load function type.
  */

@@ -53,12 +53,12 @@ static void test_set_get(void **state) {
     result = (uint64_t)hashmap_fetch(uut, "two twenty one");
     assert_null(result);
 
-    // test key-uniqueness and existing-value-priority
+    // test key-uniqueness and overwrite-priority
     hashmap_set(uut, "eleven", 12);
     hashmap_set(uut, "eleven", 11);
     result = hashmap_fetch(uut, "eleven");
     assert_non_null(result);
-    assert_int_equal(*(int*)result, 12);
+    assert_int_equal(*(int*)result, 11);
 
     // test null key
     hashmap_set(uut, NULL, 221);

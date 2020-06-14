@@ -17,7 +17,7 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
     if(r == NULL) {
         DBG_LOG("Could not malloc set container\n");
         r = NULL;
-        goto finish;
+        goto done;
     }
     
     r->buf = create_dynabuf(size, unit);
@@ -25,7 +25,7 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
         DBG_LOG("Could not malloc backing buffer for set\n");
         free(r);
         r = NULL;
-        goto finish;
+        goto done;
     }
 
     r->_filter = create_bitmap(size);
@@ -34,7 +34,7 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
         dynabuf_free(r->buf);
         free(r);
         r = NULL;
-        goto finish;
+        goto done;
     }
 
     r->entries = 0;
@@ -50,14 +50,19 @@ set_t *create_set(int size, int unit, hash_type *hashfn,
 
     r->compare = comparefn;
     r->status = ALC_SET_SUCCESS;
-finish:
+done:
     return r;
 }
 
 static int rehash(set_t *self, int count) {
     int status = ALC_SET_INVALID;
     if(check_valid(self) != ALC_SET_SUCCESS) {
-        goto finish;
+        goto done;
+    }
+
+    if(count < self->entries || count < 1) {
+        status = ALC_SET_INVALID_REQ;
+        goto done;
     }
 
     dynabuf_t *scratch_buf;
@@ -68,7 +73,7 @@ static int rehash(set_t *self, int count) {
         DBG_LOG("Could not create new backing array with size %d\n",
                 self->capacity);
         status = ALC_SET_NO_MEM;
-        goto finish;
+        goto done;
     }
     scratch_filter = create_bitmap(count);
     if(scratch_filter == NULL) {
@@ -76,7 +81,7 @@ static int rehash(set_t *self, int count) {
                 self->capacity);
         bitmap_free(scratch_filter);
         status = ALC_SET_NO_MEM;
-        goto finish;
+        goto done;
     }
 
     memset(scratch_buf->buf, 0, sizeof(void*)*count);
@@ -105,7 +110,7 @@ static int rehash(set_t *self, int count) {
     self->capacity = count;
     self->status = ALC_SET_SUCCESS;
     status = ALC_SET_SUCCESS;
-finish:
+done:
     return status;
 }
 
@@ -113,20 +118,20 @@ int set_add(set_t *self, void *item) {
     int status = ALC_SET_INVALID; 
     switch(check_space_available(self, 1)) {
         case ALC_SET_INVALID:
-            goto invalid_self;
+            goto invalid_status;
         break;
 
         case ALC_SET_NO_MEM:
             DBG_LOG("Set was resized for item %p\n", item);
             if(rehash(self, (self->capacity * 2) + 1) == ALC_SET_SUCCESS) {
                 status = set_add(self, item);
-                goto finish;
+                goto done;
             }
             else {
                 DBG_LOG("could not resize set on add, no mem available.\n");
                 self->status = ALC_SET_NO_MEM;
                 status = ALC_SET_NO_MEM;
-                goto finish;
+                goto done;
             }
         break;
 
@@ -158,9 +163,9 @@ repeat_item:
     if(self->load(self->entries, self->capacity) == true) {
         status = set_resize(self, 2*self->capacity + 1);
     }
-finish:
+done:
     self->status = status;
-invalid_self:
+invalid_status:
     return status;
 }
 
@@ -168,7 +173,7 @@ invalid_self:
 void **set_remove(set_t *self, void *item) {
     void **r = NULL;
     if(check_valid(self) != ALC_SET_SUCCESS) {
-        goto finish;
+        goto done;
     }
 
     int index = set_locate(self, item);
@@ -183,7 +188,7 @@ void **set_remove(set_t *self, void *item) {
         self->status = ALC_SET_NOTFOUND;
         r = NULL;
     }
-finish:
+done:
     return r;
 }
 
@@ -191,7 +196,7 @@ int set_resize(set_t *self, int count) {
     int status = ALC_SET_SUCCESS;
     if(check_valid(self) != ALC_SET_SUCCESS) {
         status = ALC_SET_INVALID;
-        goto finish_nostat;
+        goto invalid_status;
     }
 
     if(count > self->entries) {
@@ -199,19 +204,19 @@ int set_resize(set_t *self, int count) {
         if(status != ALC_SET_SUCCESS) {
             DBG_LOG("Could not rehash to new size %d\n", count);
             status = ALC_SET_NO_MEM;
-            goto finish;
+            goto done;
 
         }
     }
     else if(count < self->entries) {
         DBG_LOG("Requested count %d was too small.\n", count);
         status = ALC_SET_INVALID_REQ;
-        goto finish;
+        goto done;
     }
 
-finish:
+done:
     self->status = status;
-finish_nostat:
+invalid_status:
     return status;
 }
 
@@ -219,7 +224,7 @@ finish_nostat:
 int set_contains(set_t *self, void *item) {
     int r = 0;
     if(check_valid(self) != ALC_SET_SUCCESS) {
-        goto finish;
+        goto done;
     }
 
     int index = set_locate(self, item);
@@ -231,7 +236,7 @@ int set_contains(set_t *self, void *item) {
         self->status = ALC_SET_NOTFOUND;
         r = 0;
     }
-finish:
+done:
     return r;
 }
 
@@ -239,10 +244,10 @@ finish:
 int set_size(set_t *self){
     int r = -1;
     if(check_valid(self) != ALC_SET_SUCCESS) {
-        goto finish;
+        goto done;
     }
     r = self->entries;
-finish:
+done:
     return r;
 }
 
@@ -278,31 +283,31 @@ void set_free(set_t *self) {
 static int check_valid(set_t *self) {
     int r = ALC_SET_INVALID;
     if(self == NULL) {
-        goto finish;
+        goto done;
     }
 
     if(self->buf == NULL) {
         r = ALC_SET_INVALID;
-        goto finish;
+        goto done;
     }
 
     if(self->_filter == NULL) {
         r = ALC_SET_INVALID;
-        goto finish;
+        goto done;
     }
 
     if(self->compare == NULL) {
         r = ALC_SET_INVALID;
-        goto finish;
+        goto done;
     }
 
     if(self->load == NULL) {
         r = ALC_SET_INVALID;
-        goto finish;
+        goto done;
     }
 
     r = ALC_SET_SUCCESS;
-finish:
+done:
     return r;
 }
 
@@ -311,7 +316,7 @@ int check_space_available(set_t *self, int size)  {
     int status = ALC_SET_NO_MEM;
     switch((status = check_valid(self))) {
         case ALC_SET_SUCCESS:
-            status = ((self->entries + size) <= self->capacity) ? 
+            status = (self->capacity - (self->entries + size) > 0) ? 
                     ALC_SET_SUCCESS:ALC_SET_NO_MEM;
         break;
         default:
