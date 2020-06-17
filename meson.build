@@ -29,6 +29,16 @@ elif get_option('build_tests') == 'not_subproject'
 endif
 # ========= END BUILDING CONTROL =========
 
+# ========= VERSION CONTROL INFO TAGGING ========
+vcs_info = vcs_tag(
+    command: ['git', 'rev-parse', 'HEAD'],
+    input: 'templates/lib/vcs_info.template.c',
+    output: 'vcs_info.c',
+    fallback: 'NOTFOUND'
+)
+# ========= END VERSION CONTROL INFO TAGGING ========
+
+
 # ========= PROJECT VARIABLES =========
 # Properties of the C compiler
 cc = meson.get_compiler('c')
@@ -45,27 +55,27 @@ includes    = include_directories('include')
 
 # ========= LIBRARY BUILD TARGETS =========
 sl_dynabuf = library(
-    'alc_dynabuf', 'lib/dynabuf.c',
+    'alc_dynabuf', ['lib/dynabuf.c', vcs_info],
     include_directories: includes,
     install: should_install_libs
 )
 
 sl_array = library(
-    'alc_array', 'lib/array.c',
+    'alc_array', ['lib/array.c', vcs_info],
     include_directories: includes,
     link_with: sl_dynabuf,
     install: should_install_libs
 )
 
 sl_bitmap = library(
-    'alc_bitmap', 'lib/bitmap.c',
+    'alc_bitmap', ['lib/bitmap.c', vcs_info],
     include_directories: includes,
     link_with: sl_dynabuf,
     install: should_install_libs
 )
 
 sl_hashmap = library(
-    'alc_hashmap', 'lib/hashmap.c',
+    'alc_hashmap', ['lib/hashmap.c', vcs_info],
     include_directories: includes,
     link_with: [sl_dynabuf, sl_bitmap],
     install: should_install_libs
@@ -73,47 +83,47 @@ sl_hashmap = library(
 
 sl_hash_functions = library(
     'alc_hash_functions',
-    'lib/hash_functions.c',
+    ['lib/hash_functions.c', vcs_info],
     include_directories: includes,
     install: should_install_libs
 )
 
 sl_comparators = library(
     'alc_comparators',
-    'lib/comparators.c',
+    ['lib/comparators.c', vcs_info],
     include_directories: includes,
     install: should_install_libs
 )
 
 sl_set = library(
-    'alc_set', 'lib/set.c',
+    'alc_set', ['lib/set.c', vcs_info],
     include_directories: includes,
     link_with: [sl_bitmap, sl_dynabuf],
     install: should_install_libs
 )
 
 sl_iterator = library(
-    'alc_iter', 'lib/iterator.c',
+    'alc_iter', ['lib/iterator.c', vcs_info],
     include_directories: includes,
     install: should_install_libs
 )
 
 sl_array_iter = library(
-    'alc_array_iter', 'lib/array_iterator.c',
+    'alc_array_iter', ['lib/array_iterator.c', vcs_info],
     include_directories: includes,
     link_with: [sl_iterator, sl_array],
     install: should_install_libs
 )
 
 sl_hashmap_iter = library(
-    'alc_hashmap_iter', 'lib/hashmap_iterator.c',
+    'alc_hashmap_iter', ['lib/hashmap_iterator.c', vcs_info],
     include_directories: includes,
     link_with: [sl_iterator, sl_hashmap, sl_bitmap, sl_dynabuf],
     install: should_install_libs
 )
 
 sl_set_iter = library(
-    'alc_set_iter', 'lib/set_iterator.c',
+    'alc_set_iter', ['lib/set_iterator.c', vcs_info],
     include_directories: includes,
     link_with: [sl_iterator, sl_set, sl_bitmap, sl_dynabuf],
     install: should_install_libs
@@ -181,27 +191,27 @@ dep_set_iter = declare_dependency(
 ext_cmocka       = dependency('cmocka', required: false)
 if ext_cmocka.found() and should_build_tests
     exe_dynabuf_test = executable(
-      'dynabuftest', 'tests/test_dynabuf.c',
+      'test_dynabuf', 'tests/test_dynabuf.c',
       include_directories: includes,
       link_with: [sl_dynabuf],
       dependencies: ext_cmocka
     )
 
     exe_array_test = executable(
-        'arraytest', 'tests/test_array.c',
+        'test_array', 'tests/test_array.c',
         include_directories: includes,
         link_with: [sl_dynabuf, sl_array, sl_iterator, sl_array_iter],
         dependencies: ext_cmocka
     )
 
     exe_bitmap_test = executable(
-        'bitmaptest', 'tests/test_bitmap.c',
+        'test_bitmap', 'tests/test_bitmap.c',
         include_directories: includes,
         link_with: sl_bitmap, dependencies: ext_cmocka
     )
 
     exe_set_test = executable(
-        'settest', 'tests/test_set.c',
+        'test_set', 'tests/test_set.c',
         link_with: [
             sl_set, sl_hash_functions, sl_comparators, sl_iterator, sl_set_iter
         ],
@@ -210,7 +220,7 @@ if ext_cmocka.found() and should_build_tests
     )
 
     exe_hashmap_test = executable(
-        'hashtest', 'tests/test_hashmap.c',
+        'test_hashmap', 'tests/test_hashmap.c',
         include_directories: includes,
         link_with:
             [
@@ -222,11 +232,11 @@ if ext_cmocka.found() and should_build_tests
     )
 
     # test run targets
-    test('dynabuf_test', exe_dynabuf_test)
-    test('array_test', exe_array_test, args: '-j1')
-    test('bitmap_test', exe_bitmap_test)
-    test('set_test', exe_set_test)
-    test('hash_test', exe_hashmap_test)
+    test('test_dynabuf', exe_dynabuf_test)
+    test('test_array', exe_array_test)
+    test('test_bitmap', exe_bitmap_test)
+    test('test_set', exe_set_test)
+    test('test_hashmap', exe_hashmap_test)
 endif
 # ========= END UNIT TEST BUILD TARGETS =========
 
