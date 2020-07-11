@@ -222,12 +222,18 @@ if ext_cmocka.found() and should_build_tests
     exe_hashmap_test = executable(
         'test_hashmap', 'tests/test_hashmap.c',
         include_directories: includes,
-        link_with:
-            [
-                sl_hashmap, sl_hash_functions, sl_comparators,
-                sl_iterator, sl_hashmap_iter, 
-                sl_bitmap, sl_dynabuf, sl_bitmap
-            ],
+        link_with: [
+            sl_hashmap, sl_hash_functions, sl_comparators,
+            sl_iterator, sl_hashmap_iter, 
+            sl_bitmap, sl_dynabuf, sl_bitmap
+        ],
+        dependencies: ext_cmocka
+    )
+
+    exe_comparators_test = executable(
+        'test_default_comparators', 'tests/test_default_comparators.c',
+        include_directories: includes,
+        link_with: [sl_comparators],
         dependencies: ext_cmocka
     )
 
@@ -237,6 +243,7 @@ if ext_cmocka.found() and should_build_tests
     test('test_bitmap', exe_bitmap_test)
     test('test_set', exe_set_test)
     test('test_hashmap', exe_hashmap_test)
+    test('test_default_comparators', exe_comparators_test)
 endif
 # ========= END UNIT TEST BUILD TARGETS =========
 

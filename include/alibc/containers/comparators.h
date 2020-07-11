@@ -12,3 +12,8 @@ int8_t alc_default_cmp_i32(void *a, void *b);
 int8_t alc_default_cmp_i64(void *a, void *b);
 int8_t alc_default_cmp_ptr(void *a, void *b);
 int8_t alc_default_cmp_str(void *a, void *b);
+
+int8_t alc_default_cmp_u8(void *a, void *b);
+int8_t alc_default_cmp_u16(void *a, void *b);
+int8_t alc_default_cmp_u32(void *a, void *b);
+int8_t alc_default_cmp_u64(void *a, void *b);
