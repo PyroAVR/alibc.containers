@@ -262,7 +262,7 @@ int set_status(set_t *self) {
 
 void set_free(set_t *self) {
     if(self == NULL) {
-        return;
+        goto done;
     }
     
     if(self->buf != NULL) {
@@ -274,6 +274,8 @@ void set_free(set_t *self) {
     }
 
     free(self);
+done:
+    return;
 }
 
 /*
@@ -338,22 +340,26 @@ static int set_locate(set_t *self, void *item) {
         if(is_valid) {
             void **temp_item = dynabuf_fetch(self->buf, index);
             // determine if both items are null, or just one, or zero.
-            null_check  =  *temp_item == NULL;
-            null_check  |= ((item == NULL) << 1);
-            switch(null_check) {
-                case 0:
+            /*null_check  =  *temp_item == NULL;*/
+            /*null_check  |= ((item == NULL) << 1);*/
+            /*
+             *switch(null_check) {
+             *    case 0:
+             */
                     is_equal = self->compare(item, *temp_item) == 0;
-                break;
-
-                case 1:
-                case 2:
-                    is_equal = 0; 
-                break;
-
-                case 3:
-                    is_equal = 1;
-                break;
-            }
+/*
+ *                break;
+ *
+ *                case 1:
+ *                case 2:
+ *                    is_equal = 0; 
+ *                break;
+ *
+ *                case 3:
+ *                    is_equal = 1;
+ *                break;
+ *            }
+ */
         }
 
         if(is_valid && is_equal) {

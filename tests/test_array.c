@@ -189,7 +189,9 @@ static void test_iterator(void **state) {
     // iterate one too far - check stop
     for(int i = 0; i < array_size(at_uut) + 1; i++) {
         next = iter_next(iter);
-        // ALC_ITER_STOP comes into effect AFTER the last element is pulled
+        // ALC_ITER_STOP comes into effect when the last element is pulled
+        // but the loop index is offset by one (because we call next after
+        // starting iteration)
         if(i < array_size(at_uut)-1) {
             assert_int_equal(iter->status, ALC_ITER_CONTINUE);
         }

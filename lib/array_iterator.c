@@ -13,7 +13,7 @@ static void *array_iter_next(iter_context *ctx) {
         r = array_fetch(target, ctx->index);
         ctx->index++;
     }
-    if(ctx->index >= array_size(target) || array_size(target) == 0) {
+    if(ctx->index == array_size(target) || array_size(target) == 0) {
         ctx->status = ALC_ITER_STOP;
     }
     else {
@@ -24,7 +24,11 @@ done:
 }
 
 iter_context *create_array_iterator(array_t *target) {
-    iter_context *r = malloc(sizeof(iter_context));
+    iter_context *r = NULL;
+    if(target == NULL) {
+        goto done;
+    }
+    r = malloc(sizeof(iter_context));
     if(r == NULL) {
         goto done;
     }

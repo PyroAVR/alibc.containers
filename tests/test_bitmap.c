@@ -20,6 +20,7 @@ static int bm_finish(void **state) {
 static void test_min_capacity(void **state) {
     bitmap_t *uut = create_bitmap(1);
     assert_int_equal(uut->capacity, 1);
+    bitmap_free(uut);
 }
 
 static void test_add(void **state) {

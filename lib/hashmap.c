@@ -79,9 +79,7 @@ int hashmap_set(hashmap_t *self, void *key, void *value)    {
             // index guaranteed in range
             // scan for next open entry
             while(bitmap_contains(self->_filter, index))    {
-                if(*key_at(self, index) != NULL && key != NULL &&
-                        self->compare(key,
-                        *key_at(self, index)) == 0) {
+                if(self->compare(key, *key_at(self, index)) == 0) {
                     DBG_LOG("got repeat key case\n");
                     goto repeat_key;
                 }
@@ -208,7 +206,6 @@ void hashmap_free(hashmap_t *self)   {
         case ALC_HASHMAP_SUCCESS:
             dynabuf_free(self->map);
             bitmap_free(self->_filter);
-        break;
 
         case ALC_HASHMAP_INVALID:
             free(self);
@@ -243,23 +240,28 @@ static int hashmap_locate(hashmap_t *self, void *key)  {
         is_valid = bitmap_contains(self->_filter, index) != 0;
         if(is_valid) {
             // dynabuf pointers are guaranteed valid
-            null_check  = *(void**)dynabuf_fetch(self->map, index) == NULL;
-            null_check  |= ((key == NULL) << 1);
-            switch(null_check) {
-                case 0: // neither is null
-                    is_equal = self->compare(key,
-                           *(void**)dynabuf_fetch(self->map, index)) == 0;
-                break;
-
-                case 1:
-                case 2: // exclusive null cases, wrong index.
-                    is_equal = 0;
-                break;
-
-                case 3: // both are null
-                    is_equal = 1;
-                break;
-            }
+            /*
+             *null_check  = *(void**)dynabuf_fetch(self->map, index) == NULL;
+             *null_check  |= ((key == NULL) << 1);
+             */
+            is_equal = self->compare(key, *key_at(self, index)) == 0;
+/*
+ *            switch(null_check) {
+ *                case 0: // neither is null
+ *                    is_equal = self->compare(key,
+ *                           *(void**)dynabuf_fetch(self->map, index)) == 0;
+ *                break;
+ *
+ *                case 1:
+ *                case 2: // exclusive null cases, wrong index.
+ *                    is_equal = 0;
+ *                break;
+ *
+ *                case 3: // both are null
+ *                    is_equal = 1;
+ *                break;
+ *            }
+ */
         }
 
         if(is_equal && is_valid)    {

@@ -16,12 +16,15 @@ static void **hashmap_iter_keys(iter_context *ctx) {
         && !bitmap_contains(target->_filter, ctx->index)) {
         ctx->index++;
     }
+    if(bitmap_contains(target->_filter, ctx->index)) {
+        r = key_at(target, ctx->index);
+    }
+
     if(ctx->index == target->capacity) {
         ctx->status = ALC_ITER_STOP;
     }
     else {
         ctx->status = ALC_ITER_CONTINUE;
-        r = key_at(target, ctx->index);
         ctx->index++;
     }
 done:
@@ -29,7 +32,7 @@ done:
 }
 
 static void **hashmap_iter_values(iter_context *ctx) {
-    void *r = NULL;
+    void **r = NULL;
     hashmap_t *target = (hashmap_t*)ctx->_data;
     if(target == NULL) {
         ctx->status = ALC_ITER_INVALID;
@@ -39,12 +42,15 @@ static void **hashmap_iter_values(iter_context *ctx) {
         && !bitmap_contains(target->_filter, ctx->index)) {
         ctx->index++;
     }
+    if(bitmap_contains(target->_filter, ctx->index)) {
+        r = value_at(target, ctx->index);
+    }
+
     if(ctx->index == target->capacity) {
         ctx->status = ALC_ITER_STOP;
     }
     else {
         ctx->status = ALC_ITER_CONTINUE;
-        r = value_at(target, ctx->index);
         ctx->index++;
     }
 done:

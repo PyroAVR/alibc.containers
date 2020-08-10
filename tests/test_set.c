@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <alibc/containers/set.h>
 #include <alibc/containers/hash_functions.h>
+#include <alibc/containers/comparators.h>
 #include <alibc/containers/iterator.h>
 #include <alibc/containers/set_iterator.h>
 #include <string.h>
@@ -23,7 +24,7 @@ static bool full_load(int entries, int capacity) {
 
 static int set_init(void **state) {
     set_t *uut = create_set(
-        1, sizeof(char*), alc_default_hash_str, strcmp, full_load
+        1, sizeof(char*), alc_default_hash_str, alc_default_cmp_str, full_load
     );
     *state = uut;
     return 0;
@@ -114,15 +115,14 @@ static void test_iterator(void **state) {
     assert_int_equal(iter->status, ALC_ITER_READY);
     // iterate one too far - check stop
     for(int i = 0; i < set_size(uut) + 1; i++) {
-        next = iter_next(iter);
-        if(next != NULL) {
-            next = *(char**)next;
-        }
         if(i < set_size(uut)) {
+            next = *iter_next(iter);
             assert_int_equal(iter->status, ALC_ITER_CONTINUE);
             assert_true(set_contains(uut, next));
         }
         else {
+            // note the lack of *
+            next = iter_next(iter);
             assert_int_equal(iter->status, ALC_ITER_STOP);
             // oob case
             assert_null(next);
@@ -150,20 +150,22 @@ static void test_invalid_calls(void **state) {
 
     // check for invalid load function
     set_t *uut = *state;
-    uut->load = NULL;
-    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
+    // prevent invalid state on free by making a stack-local copy.
+    set_t uut2 = *uut;
+    uut2.load = NULL;
+    assert_int_equal(set_add(&uut2, NULL), ALC_SET_INVALID);
 
     // invalid compare function
-    uut->compare = NULL;
-    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
+    uut2.compare = NULL;
+    assert_int_equal(set_add(&uut2, NULL), ALC_SET_INVALID);
 
     // invalid bitmap
-    uut->_filter = NULL;
-    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
+    uut2._filter = NULL;
+    assert_int_equal(set_add(&uut2, NULL), ALC_SET_INVALID);
 
     // invalid buffer
-    uut->buf = NULL;
-    assert_int_equal(set_add(uut, NULL), ALC_SET_INVALID);
+    uut2.buf = NULL;
+    assert_int_equal(set_add(&uut2, NULL), ALC_SET_INVALID);
 }
 
 static int bad_hash_fn(void *item) {

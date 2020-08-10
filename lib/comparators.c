@@ -36,8 +36,12 @@ int8_t alc_default_cmp_str(void *a, void *b){
     int8_t status = 0;
     char *c = (char*)a;
     char *d = (char*)b;
-    if(a == NULL || b == NULL)  {
+    if(a == NULL && b == NULL)  {
         return 0;
+    }
+    // arbitrary non-zero choice
+    else if((a == NULL && b != NULL) || (a != NULL && b == NULL)) {
+        return -1;
     }
     while(c[idx] != 0 && d[idx] != 0)   {
         if(c[idx] > d[idx]) {
@@ -49,6 +53,13 @@ int8_t alc_default_cmp_str(void *a, void *b){
             goto done;
         }
         idx++;
+    }
+    // shorter strings come first
+    if(c[idx] == 0 && d[idx] != 0) {
+        status = -1;
+    }
+    else if(c[idx] != 0 && d[idx] == 0) {
+        status = 1;
     }
 done:
     return status;

@@ -15,12 +15,15 @@ static void **set_iter_next(iter_context *ctx) {
        && !bitmap_contains(target->_filter, ctx->index)) {
         ctx->index++;
     }
+    if(bitmap_contains(target->_filter, ctx->index)) {
+        r = dynabuf_fetch(target->buf, ctx->index);
+    }
+
     if(ctx->index == target->capacity) {
         ctx->status = ALC_ITER_STOP;
     }
     else {
         ctx->status = ALC_ITER_CONTINUE;
-        r = dynabuf_fetch(target->buf, ctx->index);
         ctx->index++;
     }
 done:

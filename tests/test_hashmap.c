@@ -16,7 +16,7 @@ char *names[] = {"one", "two", "three", "four", "five",
 
 static int ht_init(void **state)  {
     hashmap_t *uut  = create_hashmap(
-        2, sizeof(char*), sizeof(int), alc_default_hash_i64, strcmp, NULL
+        2, sizeof(char*), sizeof(int), alc_default_hash_i64, alc_default_cmp_str, NULL
     );
     assert_non_null(uut);
     for(uint64_t i = 0; i < 10; i++) {
@@ -124,11 +124,13 @@ static void test_iter_keys(void **state) {
     assert_int_equal(iter->status, ALC_ITER_READY);
     // iterate one too far - check stop
     for(int i = 0; i < 11; i++) {
-        next = iter_next(iter);
         if(i < 10) {
+            next = *iter_next(iter);
             assert_int_equal(iter->status, ALC_ITER_CONTINUE);
         }
         else if(i == 10) {
+            // note the lack of *
+            next = iter_next(iter);
             assert_int_equal(iter->status, ALC_ITER_STOP);
             // oob case
             assert_null(next);
@@ -152,12 +154,14 @@ static void test_iter_values(void **state) {
     bitmap_t *values_bmp = create_bitmap(sizeof(names)/sizeof(char*));
     // iterate one too far - check stop
     for(int i = 0; i < 11; i++) {
-        next = (int*)iter_next(iter);
         if(i < 10) {
+            next = *(int*)iter_next(iter);
             assert_int_equal(iter->status, ALC_ITER_CONTINUE);
-            bitmap_add(values_bmp, *next);
+            bitmap_add(values_bmp, next);
         }
         else if(i == 10) {
+            // note the lack of *
+            next = (int*)iter_next(iter);
             assert_int_equal(iter->status, ALC_ITER_STOP);
             // oob case
             assert_null(next);
@@ -167,6 +171,7 @@ static void test_iter_values(void **state) {
         assert_true(bitmap_contains(values_bmp, i + 1));
     }
     iter_free(iter);
+    bitmap_free(values_bmp);
 }
 
 static void test_invalid_calls(void **state) {
