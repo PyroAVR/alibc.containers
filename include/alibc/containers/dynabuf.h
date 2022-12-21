@@ -43,6 +43,18 @@ dynabuf_t *create_dynabuf(int size, int unit);
  */
 int dynabuf_set(dynabuf_t *target, int which, void *element);
 
+/**
+ * Insert a new element, where void *value is interpreted as a value with the
+ * configured unit size in bytes.
+ */
+int dynabuf_write_val(dynabuf_t *self, int which, void *value);
+
+/**
+ * Insert a new element, where void *value is understood as a pointer to a value
+ * with the configured unit size in bytes.
+ */
+int dynabuf_write_ptr(dynabuf_t *self, int which, void *ptr);
+
 
 /**
  * Repeatedly write into the same key, allowing multiple values to be written in

@@ -1,0 +1,19 @@
+FIX ARRAY ITERATOR TEST - MEMORY LEAK AFTER NULL ITERATOR CHECKS
+
+ - might go for the "choose implementation at link time" strat for now, esp. re: dynamic vs. static memory.
+ - Whatever choice is made in the dynabuf will fix the memory allocation for all other data structures
+   - will not fix the general problem though. If you want a linked list and a contiguous list that both use array_set, gg.
+   - could fix this at a higher level though, via protocol objects...
+
+
+ - Remember the ALC guidelines:
+   - let the developer choose
+   - expose lower-level features in each standalone implementation
+   - abstract away convenience features to higher layers (protocols :))
+   - minimize complexity wherever possible.
+   - minimize dependencies wherever possible (read: coupling)
+
+
+todo:
+ - static dynabuf
+ - allocator abstraction

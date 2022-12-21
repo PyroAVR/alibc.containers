@@ -55,10 +55,12 @@ done:
 
 
 int dynabuf_set(dynabuf_t *target, int which, void *element) {
+#if defined(__ALIBC_ENABLE_DEBUG_MACROS__)
     int status = check_valid(target);
     if(status != ALC_DYNABUF_SUCCESS) {
         goto done;
     }
+#endif
     if(target->elem_size > sizeof(void*)) {
         memcpy(
             target->buf + (which * target->elem_size),
@@ -77,6 +79,13 @@ done:
     return status;
 }
 
+int dynabuf_write_val(dynabuf_t *self, int which, void *value) {
+
+}
+
+int dynabuf_write_ptr(dynabuf_t *self, int which, void *ptr) {
+
+}
 
 int dynabuf_set_seq(dynabuf_t *target, int which, int next,
         void *value, int size) {
